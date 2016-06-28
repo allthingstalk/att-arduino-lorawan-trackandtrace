@@ -6,6 +6,7 @@
 #include <Wire.h>
 
 #define MAXMARGIN 5
+#define LENGTHOFSAMPLINGCYCLCE 10000
 
 void DoorSensorAppClass::init(ATTDevice* device)
 {
@@ -19,6 +20,14 @@ void DoorSensorAppClass::init(ATTDevice* device)
 	if (_device)
 		_device->Send(false, BINARY_SENSOR);				//let the cloud know the current status.
 
+}
+
+void DoorSensorAppClass::initInterupt(ATTDevice* device)
+{
+	init(device);
+	startReportingBattery();
+	initAcceleroInterupts(compass);
+	startReportingMovement(compass);
 }
 
 void DoorSensorAppClass::calibrate()
@@ -48,6 +57,7 @@ void DoorSensorAppClass::calibrate()
 
 void DoorSensorAppClass::loop()
 {
+	AppBase::loop();
 	compass.read();
 	float curHeading = compass.heading();
 	SerialUSB.print("heading: "); SerialUSB.println(curHeading);
@@ -67,6 +77,32 @@ void DoorSensorAppClass::loop()
 			_device->Send(false, BINARY_SENSOR);
 	}
 	delay(1000);
+}
+
+
+bool inMovingCycle = false;				//when accelero triggered, sample accelerometer for a couple of seconds before putting it back to sleep. acceleration is only at the beginning and end of the action,
+unsigned long startOfMovemenetCycle = 0;
+
+void DoorSensorAppClass::loopInterupt()
+{
+	if (hasMoved() || inMovingCycle)
+	{
+		if (inMovingCycle == false)
+		{
+			SerialUSB.println("has moved");
+			inMovingCycle = true;
+			startOfMovemenetCycle = millis();
+		}
+		else if (startOfMovemenetCycle + LENGTHOFSAMPLINGCYCLCE <= millis()) {
+			inMovingCycle = false;
+			SerialUSB.println("stop moving cycle");
+		}
+		else
+			SerialUSB.println("in moving cycle");
+		loop();
+	}
+	else 
+		AppBase::loop();
 }
 
 DoorSensorAppClass DSApp;

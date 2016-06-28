@@ -27,6 +27,7 @@ class AppBase
 	 virtual void loop();
 	 void startReportingBattery();
 	 void initAcceleroInterupts(LSM303& compass);
+	 void initMagnetoInterupts(LSM303& compass);
 	 void startReportingMovement(LSM303& compass);
 	 void startReportingMagnetoChange(LSM303& compass);
 	 //returns true if the accelerometer reported movement
@@ -37,6 +38,7 @@ class AppBase
 	 bool magnetoChanged();
 
 	 void stopAcceleroInterupt(LSM303& compass);
+	 void stopMagnetoInterupt(LSM303& compass);
 };
 
 

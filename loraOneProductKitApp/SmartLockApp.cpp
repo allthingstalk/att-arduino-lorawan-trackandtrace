@@ -18,7 +18,7 @@ void SmartLockAppClass::init(ATTDevice* device)
 	sodaq_gps.init();
 	setState(false);
 
-	StartReportingBattery();
+	startReportingBattery();
 
 	compass.read();
 	_prevX = compass.a.x;		//need to establish a base line for detecting movement.
@@ -107,7 +107,7 @@ void SmartLockAppClass::loop()
 			setState(false);
 		}
 		else {
-			//sendGPSFix();
+			//sendGPSFix(); -> only if changed
 			delay(35000);			//simulate sleep+wake up by timer
 		}
 	}

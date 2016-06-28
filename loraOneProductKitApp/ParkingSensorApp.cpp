@@ -20,6 +20,30 @@ void ParkingSensorAppClass::init(ATTDevice* device)
 	_isFull = false;
 	if (_device)
 		_device->Send(false, BINARY_TILT_SENSOR);				//let the cloud know the current status.
+	startReportingBattery();
+}
+
+void ParkingSensorAppClass::initInterupt(ATTDevice* device)
+{
+	init(device);
+	initMagnetoInterupts(compass);
+	startReportingMagnetoChange(compass);
+
+	//specific for magneto
+	compass.writeReg(0x12, 0b11100000);  //enable interupt gecongition on all axis for magneto data.
+	compass.writeReg(0x13, 0b11111101);
+
+	compass.writeReg(0x14, MAXMARGIN & 0x00FF);
+	compass.writeReg(0x15, MAXMARGIN & 0xFF00);
+
+	compass.writeReg(0x16, _baseX & 0x00FF);
+	compass.writeReg(0x17, _baseX & 0xFF00);
+
+	compass.writeReg(0x18, _baseY & 0x00FF);
+	compass.writeReg(0x19, _baseY & 0xFF00);
+
+	compass.writeReg(0x1A, _baseZ & 0x00FF);
+	compass.writeReg(0x1B, _baseZ & 0xFF00);
 }
 
 
@@ -53,6 +77,13 @@ void ParkingSensorAppClass::calibrate()
 
 void ParkingSensorAppClass::loop()
 {
+	AppBase::loop();
+	sample();
+	delay(1000);
+}
+
+void ParkingSensorAppClass::sample()
+{
 	int dif;
 	compass.read();
 	SerialUSB.print("x: "); SerialUSB.print(compass.m.x); SerialUSB.print("y: "); SerialUSB.print(compass.m.y);  SerialUSB.print("z: "); SerialUSB.println(compass.m.z);
@@ -70,7 +101,13 @@ void ParkingSensorAppClass::loop()
 		if (_device)
 			_device->Send(false, BINARY_TILT_SENSOR);
 	}
-	delay(1000);
+}
+
+void ParkingSensorAppClass::loopInterupt()
+{
+	AppBase::loop();
+	if (magnetoChanged())
+		sample();
 }
 
 ParkingSensorAppClass PSApp;

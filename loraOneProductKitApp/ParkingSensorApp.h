@@ -28,11 +28,14 @@ class ParkingSensorAppClass: public AppBase
 	 //samples the magnetormeter for a couple of seconds and uses this as a base line so that 
 	 //it can determine when something comes underneath/above it.
 	 void calibrate();
+	 void sample();
  public:
 	virtual void init(ATTDevice* device) override;
+	void initInterupt(ATTDevice* device);
 
 	// Inherited via App
 	virtual void loop() override;
+	void loopInterupt();
 };
 extern ParkingSensorAppClass PSApp;
 

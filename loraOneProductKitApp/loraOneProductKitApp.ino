@@ -9,8 +9,8 @@
 
 
 //#include "ParkingSensorApp.h"
-//#include "DoorSensorApp.h"
-#include "SmartLockApp.h"
+#include "DoorSensorApp.h"
+//#include "SmartLockApp.h"
 
 // Test sleep current
 
@@ -42,7 +42,9 @@ void setup()
 	while (!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY));
 	SerialUSB.println("Ready to send data");
 
-	SLApp.init(&Device);
+	//SLApp.init(&Device);
+	DSApp.initInterupt(&Device);
+  //PSApp.init(&Device);
 }
 
 //void buttonPressed()
@@ -58,5 +60,7 @@ void loop()
 	//PowerManager.sleep();
 	//Stay awake 10s for new upload
 	//delay(10000);
-	SLApp.loop();
+	//SLApp.loop();
+    DSApp.loopInterupt();
+    //PSApp.loop();
 }

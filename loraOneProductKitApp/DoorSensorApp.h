@@ -25,8 +25,10 @@ class DoorSensorAppClass : public AppBase
 	 void calibrate();
  public:
 	 virtual void init(ATTDevice* device) override;
+	 void initInterupt(ATTDevice* device);
 	// Inherited via App
 	virtual void loop() override;
+	void loopInterupt();
 };
 
 extern DoorSensorAppClass DSApp;
