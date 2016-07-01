@@ -85,19 +85,19 @@ void AppBase::initMagnetoInterupts(LSM303& compass)
 void AppBase::startReportingMovement(LSM303& compass)
 {
 	_reportMovement = false;
-	//compass.writeReg(0x1F, 0b10000000);// Reboot: CTRL0
-	compass.writeReg(0x20, 0b01010111);// Set to 50z all axes active: CTRL1
-	//setup sources
-	compass.writeReg(0x22, 0b00100000);// CTRL3 (INT1 or int2 depnds on board), INT1 sources from IG_SRC1
-	compass.writeReg(0x23, 0b00100000);// CTRL4 (INT2 or int1 depnds on board): INT2 sources from IG_SRC2
+	compass.writeReg(0x1F, 0b10000000);// Reboot: CTRL0
+	compass.writeReg(LSM303::CTRL1, 0b01010111); //(0x20)// Set to 50z all axes active: CTRL1
 	// Interrupt source 1
-	compass.writeReg(0x30, 0b10001000); // Axes mask
-	compass.writeReg(0x32, 0b00111111); // Threshold
-	compass.writeReg(0x33, 0b00000000); // Duration
+	compass.writeReg(LSM303::IG_CFG1, 0b10000010); //(0x30) Axes mask
+	compass.writeReg(LSM303::IG_THS1, 0b00000011); //(0x32) Threshold
+	compass.writeReg(LSM303::IG_DUR1, 0b00000000); //(0x33) Duration
 	// Interrupt source 2
-	compass.writeReg(0x34, 0b10000010); // Axes mask
-	compass.writeReg(0x36, 0b00111111); // Threshold
-	compass.writeReg(0x37, 0b00000000); // Duration
+	compass.writeReg(LSM303::IG_CFG2, 0b10100000); // (0x34)Axes mask
+	compass.writeReg(LSM303::IG_THS2, 0b00000101); // (0x36)Threshold
+	compass.writeReg(LSM303::IG_DUR2, 0b00000000); // (0x37)Duration
+	//setup sources
+	compass.writeReg(LSM303::CTRL3, 0b00100000);// (0x22)CTRL3 (INT1 or int2 depnds on board), INT1 sources from IG_SRC1
+	compass.writeReg(LSM303::CTRL4, 0b00100000);// (0x23)CTRL4 (INT2 or int1 depnds on board): INT2 sources from IG_SRC2
 }
 
 void AppBase::startReportingMagnetoChange(LSM303& compass)

@@ -22,7 +22,10 @@ class DoorSensorAppClass : public AppBase
 
 	 //samples the heading for a couple of seconds and uses this as a base line so that 
 	 //it can determine when the gate/door has moved/comes back into position.
-	 void calibrate();
+	 void calibrate(int16_t &x, int16_t &z);
+	 //read the current acceleration of all axes and use that to set up the treshold and the interrupts
+	 void prepareInterrupts(int16_t x,  int16_t z);
+	 void checkGatePosition();
  public:
 	 virtual void init(ATTDevice* device) override;
 	 void initInterupt(ATTDevice* device);
