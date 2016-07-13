@@ -233,7 +233,9 @@ void setup()
     SerialUSB.begin(57600);
     
     sodaq_gps.init();                                       //do this as early as possible, so we have a workign gps.
+	#ifdef DEBUG											//when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
     while(!SerialUSB){}
+	#endif
     SerialUSB.println("start");
     initPower();
     initLeds();

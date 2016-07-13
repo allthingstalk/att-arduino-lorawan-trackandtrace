@@ -131,7 +131,10 @@ void stopMagnetoIntertupt()
 
 void setup() 
 {
+	SerialUSB.begin(57600);
+    #ifdef DEBUG											//when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
     while(!SerialUSB){}
+	#endif
     SerialUSB.println("start");
 
     initPower();

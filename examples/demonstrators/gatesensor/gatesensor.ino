@@ -141,9 +141,10 @@ void prepareInterrupts(int16_t x, int16_t z)
 void setup()
 {
     SerialUSB.begin(57600);
-    
+    #ifdef DEBUG											//when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
     while(!SerialUSB){}
-    SerialUSB.println("start");
+	SerialUSB.println("start");
+	#endif
     initPower();
     initLeds();
     setPower(HIGH);                             //turn board on
