@@ -3,6 +3,7 @@
 #define _att_common_h
 
 #include <ATT_LoRa_IOT.h>
+#include <MicrochipLoRaModem.h>
 #include "ATT_LoRaOne_rtcZero.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
@@ -64,8 +65,8 @@ void enableUSB();
 //set up the timer and start reporting battery level every 24 hours
 void startReportingBattery(RTCZero &rtc);
 //check if it's time to report battery status, and if so, do it.
-void tryReportBattery(ATTDevice &device);
+void tryReportBattery(MicrochipLoRaModem &modem, ATTDevice &device);
 //calculates the current battery level and sends it the cloud.
-void reportBatteryStatus(ATTDevice &device);
+void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device);
 
 #endif

@@ -48,11 +48,11 @@ void setup()
 	pinMode(ACCEL_INT1, INPUT_PULLUP);
 	pinMode(ACCEL_INT2, INPUT_PULLUP);
 	attachInterrupt(ACCEL_INT1, ISR1, FALLING);
-	//SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;						// Set the XOSC32K to run in standby
-	//GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) | GCLK_CLKCTRL_GEN_GCLK1 | GCLK_CLKCTRL_CLKEN;
+	SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;						// Set the XOSC32K to run in standby
+	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) | GCLK_CLKCTRL_GEN_GCLK1 | GCLK_CLKCTRL_CLKEN;
 	attachInterrupt(ACCEL_INT2, ISR1, FALLING);
-	//SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;						// Set the XOSC32K to run in standby
-	//GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) | GCLK_CLKCTRL_GEN_GCLK1 | GCLK_CLKCTRL_CLKEN;
+	SYSCTRL->XOSC32K.bit.RUNSTDBY = 1;						// Set the XOSC32K to run in standby
+	GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(GCM_EIC) | GCLK_CLKCTRL_GEN_GCLK1 | GCLK_CLKCTRL_CLKEN;
 	
 
 	writeReg(0x1F, 0b10000000);  //reboot
@@ -91,13 +91,13 @@ void loop()
 	CONSOLE_SERIAL.print("Reading from register: 0x" + String(0x13, HEX));
 	CONSOLE_SERIAL.print(", response: ");
 	CONSOLE_SERIAL.println(readReg(0x13), BIN);
-	//USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
-	//__WFI();							//Enter sleep mode
-	//USB->DEVICE.CTRLA.reg |= USB_CTRLA_ENABLE;
+	USB->DEVICE.CTRLA.reg &= ~USB_CTRLA_ENABLE;
+	__WFI();							//Enter sleep mode
+	USB->DEVICE.CTRLA.reg |= USB_CTRLA_ENABLE;
 	
-	//digitalWrite(LED_RED, LOW);
-	//delay(3000);
-	//digitalWrite(LED_RED, HIGH);
+	digitalWrite(LED_RED, LOW);
+	delay(3000);
+	digitalWrite(LED_RED, HIGH);
 	delay(1000);
 }
 

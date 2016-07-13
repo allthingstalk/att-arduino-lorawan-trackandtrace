@@ -10,20 +10,6 @@
  *
  *  For more information, please check our documentation
  *  -> http://docs.smartliving.io/kits/lora
- 
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2.1 of the License, or (at your option) any later version.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  **/
 
@@ -147,8 +133,9 @@ void setup()
 	#endif
     initPower();
     initLeds();
-    setPower(HIGH);                             //turn board on
+    setPower(HIGH);                             		//turn board on
     resetAllDigitalPins();
+	setGPSPower(LOW);                                   // Disable GPS
     
     Serial1.begin(Modem.getDefaultBaudRate());  // init the baud rate of the serial connection so that it's ok for the modem. It is more power efficient to leave Serial1 running
     while (!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY));
@@ -170,12 +157,8 @@ void setup()
     prepareInterrupts(x, y);
     signalSendResult(Device.Send(false, BINARY_SENSOR));
     delay(15000);                                           //make certain that we don't over-user the lora network.
-    reportBatteryStatus(Device);                            //send the current battery status at startup to report init state.
+    reportBatteryStatus(Modem, Device);                            //send the current battery status at startup to report init state.
     startReportingBattery(rtc);
-    
-    // Put LoRa to sleep of 30s
-    //Serial1.println("sys sleep 30000");
-    //delay(100);
 }
 
 //checks if the gate is currently open or closed.
@@ -216,7 +199,7 @@ void loop()
     SerialUSB.println("going to sleep");
     sleep();
     #endif
-    tryReportBattery(Device);
+    tryReportBattery(Modem, Device);
     if(hasMoved()){
         bool newPos = isGateOpen();
         if(newPos == true && _isOpen == false){

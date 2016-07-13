@@ -1,4 +1,4 @@
-// Accel Test
+// heading Test
 
 #include <Wire.h>
 #include "LSM303.h"

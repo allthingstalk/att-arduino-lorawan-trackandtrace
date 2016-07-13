@@ -10,21 +10,7 @@
  *
  *  For more information, please check our documentation
  *  -> http://docs.smartliving.io/kits/lora
- 
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License as published by the Free Software Foundation; either
- *  version 2.1 of the License, or (at your option) any later version.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
+ * 
  **/
 
 #include <ATT_LoRa_IOT.h>
@@ -198,6 +184,7 @@ void sendGPSFix(bool withSendDelay)
 //also signals the user about the state (red or green led are activated.)
 void sendState(bool value)
 {
+	Modem.Wakeup();											//the modem is sleeping by default, need to wake it up to send something
     SerialUSB.print("sending state: "); SerialUSB.println(value);
     int8_t retryCount = 0;
     int pin = value ? LED_RED : LED_GREEN;
@@ -218,6 +205,7 @@ void sendState(bool value)
         _resendWasMoving = true;                            //the fact that the device is moving is very important, it could be stolen, so if we failed to send the message, retry later on.
         SerialUSB.println("retrying to send value 'true' on next run"); 
     }
+	Modem.Sleep();											//when done, put the modem back to sleep to save battery power.
 }
  
 //stores and sends the 'movement value to the cloud + also sends the gps coordinates.
@@ -255,13 +243,8 @@ void setup()
     prepareInterrupts(x, y);
     setState(false);
     delay(15000);                                           //make certain that we don't over-user the lora network.
-    reportBatteryStatus(Device);                            //send the current battery status at startup to report init state.
+    reportBatteryStatus(Modem, Device);                     //send the current battery status at startup to report init state.
     startReportingBattery(rtc);
-    
-    
-    // Put LoRa to sleep of 30s
-    //Serial1.println("sys sleep 30000");
-    //delay(100);
 }
 
 void onSleepDone() 
@@ -308,7 +291,7 @@ bool isMoving()
 
 void loop()
 {
-    tryReportBattery(Device); 
+    tryReportBattery(Modem, Device); 
     if(_resendWasMoving)                                        //if the device started moving and we failed to send this to the cloud, then retry to send this value untill succesfull. The device might have been locked, if we don't send out this value (and the gps coordinates), then there is no alert triggered.
         sendState(true);
     if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
@@ -323,8 +306,10 @@ void loop()
             activateAcceleroInterupts();
         }
         else{
+			Modem.WakeUp();							//SendGPSFix doesn't wake up the modem, we need to do this
             SerialUSB.println("movement continues");
             sendGPSFix(false);
+			Modem.Sleep();
             setWakeUpClock();
         }
     }
