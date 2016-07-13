@@ -19,7 +19,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "Sodaq_UBlox_GPS.h"
+#include "ATT_LoRaOne_UBlox_GPS.h"
 
 #define DEBUG 1
 #ifdef DEBUG
