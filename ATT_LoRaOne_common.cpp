@@ -218,8 +218,7 @@ void startReportingBattery(RTCZero &rtc)
 
 void tryReportBattery(MicrochipLoRaModem &modem, ATTDevice &device)
 {
-	unsigned long curTime = millis();
-	if (_reportBattery || _batteryLastReportedAt + SENDBATTERYEVERY <= curTime)	//check if the battery status needs to be reported (flag set by the interrupt).
+	if (_reportBattery || _batteryLastReportedAt + SENDBATTERYEVERY <= millis())	//check if the battery status needs to be reported (flag set by the interrupt).
 	{
 		_reportBattery = false;							//switch the flag back off, so that we can report the battery status next run as well
 		reportBatteryStatus(modem, device);
@@ -228,6 +227,7 @@ void tryReportBattery(MicrochipLoRaModem &modem, ATTDevice &device)
 
 void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 {
+	unsigned long curTime = millis();
 	modem.WakeUp();
 	SerialUSB.println("reporting battery status");
 	uint16_t batteryVoltage = analogRead(BATVOLTPIN);
