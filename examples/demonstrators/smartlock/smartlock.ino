@@ -20,34 +20,30 @@
 #include <ATT_LoRaOne_RTCZero.h>
 #include <ATT_LoRaOne_UBlox_GPS.h>
 #include <ATT_LoRaOne_common.h>
-
-#include "keys.h"
-
-//#define DEBUG                                 //put this line in comment to turn on deep sleep mode. When debug is defined, the device will not go into deep sleep mode and the serial monitor will remain available. 
-#define NOGPS                                   //put this line in comment if you  want to send gps coordinates (real usage), to block sending gps coordinates for indoor testing, remove commment
+#include "Config.h"
+#include "BootMenu.h"
 
 
+#define DEBUG
 
-#define ACCELERO_SENSITIVY 4                    //sensitivity of the accelerometer when in deep sleep mode (waiting for first movment), the closer to 0, the more sensitive. Each point represent 16 milli g force.
-#define MAX_MOVEMENT_TOLERANCE 400              //sensitivity of the accelerometer while in motion (to verify if the device is still moving), the closer to 0, the more sensitive. expressed in absolute accelero values
-#define WAKEUP_EVERY_SEC 30                     //seconds part of the clock that wakes up the device while moving, to verity if the device is still moving.
-#define WAKEUP_EVERY_MIN 0                      //minutes part of the clock that wakes up the device while moving, to verity if the device is still moving.
 
+#define GPS_WAKEUP_EVERY_SEC 5                 //seconds part of the clock that wakes up the device for retrieving a GPS fix.    
+#define GPS_WAKEUP_EVERY_MIN 0                  //minutes part of the clock that wakes up the device for retrieving a GPS fix
+#define MAX_MOVEMENT_TOLERANCE 500              //sensitivity of the accelerometer while in motion (to verify if the device is still moving), the closer to 0, the more sensitive. expressed in absolute accelero values
 #define ACCELERO_NR_CALIBRATION_STEPS 20        // the nr of iterations used during calibration of the device.
 #define MOVEMENT_NR_OF_SAMPLES 10               // the number of samples taken from the accelero in order to determine if the device is moving or not. (there can only be 2 measurements with diffeernt g forces)
 
-#define GPS_FIX_TIMEOUT 900L                    //nr of seconds after which the GPS will time out and no GPS position will be ssent.
-#define RESEND_DELAY 15                         //nr of seconds to wait before retrying to send a state value (moving or not)
-#define MAX_SEND_RETRIES 5                      //the maximum nr of times the system will retry to send a state update/gps coordinate.  When state is true and it fails more times, the system will still try to resend it at least every 24 hours.
-
-
+#define HEX_CHAR_TO_NIBBLE(c) ((c >= 'a') ? (c - 'a' + 0x0A) : ((c >= 'A') ? (c - 'A' + 0x0A) : (c - '0')))
+#define HEX_PAIR_TO_BYTE(h, l) ((HEX_CHAR_TO_NIBBLE(h) << 4) + HEX_CHAR_TO_NIBBLE(l))
 
 MicrochipLoRaModem Modem(&Serial1, &SerialUSB);
 ATTDevice Device(&Modem, &SerialUSB);
 
 LSM303 compass;
 bool _wasMoving;                                //keeps track of the moving state. If this is true, the device was moving when last checked.
-bool _resendWasMoving = false;                  //when this flag is true, then the system needs to try and resend the fact that the device has moved -> it failed, but this is an important state to send.
+//bool _resendWasMoving = false;                  //when this flag is true, then the system needs to try and resend the fact that the device has moved -> it failed, but this is an important state to send.
+bool _gpsScanning = false;                      //the gps scans for a location fix in an async way, this flag keeps track of the scan state: are we currently looking for a gps fix or not.
+bool _foundGPSFix = false;						//have we found a 1st gps fix, if not, we time out longer, if we have, we can query the gps faster.
 
 RTCZero rtc;
 volatile bool wakeFromTimer = false;
@@ -57,11 +53,12 @@ volatile bool wakeFromTimer = false;
 #define ACCELERO_COMPENSATION 0.061             // used to convert acceleration to g, do not change
 
 
-//calibrate without giving info to user through leds.
-void quickCalibrate(int16_t &x, int16_t &y)
+
+void calibrate(int16_t &x, int16_t &y)
 {
     x = 0;
     y = 0;
+    SerialUSB.println("begin calibration");
     for (int i = 1; i <= ACCELERO_NR_CALIBRATION_STEPS; i++)
     {
         compass.read();
@@ -80,28 +77,18 @@ void quickCalibrate(int16_t &x, int16_t &y)
         }
         delay(100);
     }
+    SerialUSB.println("end calibration");
 }
 
 
-//read the compass for a nr of seconds, first allow it to stabelize (user might want to remove a ladder first)
-//after stabelized, take an average of the values and store as base line. 
-//let the user know the state through the led:
-//     - blue: waiting to start calibration
-//     - red: calibrating
-//     - green: calibrated.  after 1 sec, the light goes out.
-void calibrate(int16_t &x, int16_t &y)
-{
-    informStartOfCalibration();
-    quickCalibrate(x, y);
-    informEndOfCalibration();
-} 
 
 void setThresholds(int16_t x, int16_t y)
 {
+    uint8_t sensitivity = params.getAcceleroSensitivity();
     SerialUSB.print("base x: "); SerialUSB.println(x);
     SerialUSB.print("base y: "); SerialUSB.println(y);
-    x = (round((x * ACCELERO_COMPENSATION) / 16)) + ACCELERO_SENSITIVY;                 //16 mg step size at 2g accuratie
-    y = (round((y * ACCELERO_COMPENSATION) / 16)) + ACCELERO_SENSITIVY;
+    x = (round((x * ACCELERO_COMPENSATION) / 16)) + sensitivity;                 //16 mg step size at 2g accuratie
+    y = (round((y * ACCELERO_COMPENSATION) / 16)) + sensitivity;
     SerialUSB.print("x: 0x"); SerialUSB.print(x, HEX); SerialUSB.print("; 0b"); SerialUSB.println(x, BIN);
     SerialUSB.print("y: 0x"); SerialUSB.print(y, HEX); SerialUSB.print("; 0b"); SerialUSB.println(y, BIN);
 
@@ -131,120 +118,9 @@ void prepareInterrupts(int16_t x, int16_t y)
     writeReg(0x30, 0b10000010); // Axes mask (gen 1)
     writeReg(0x34, 0b10001000); // Axes mask (gen 2)
     setThresholds(x, y);
-    writeReg(0x33, 0b00000000); // Duration (gen 1)
-    writeReg(0x37, 0b00000000); // Duration (gen 2)
+    writeReg(0x33, 0b00010010); // Duration (gen 1)
+    writeReg(0x37, 0b00010010); // Duration (gen 2)
     activateAcceleroInterupts();
-}
-
-//gets the current location from the gps and sends it to the cloud.
-//withSendDelay: when true, the function will pause (15 sec) before sending the message. The 15 sec is in total, so getting a gps fix is included in that time.
-void sendGPSFix(bool withSendDelay)
-{
-    sodaq_gps.setDiag(SerialUSB);
-
-    unsigned long start = millis();
-    uint32_t timeout = GPS_FIX_TIMEOUT * 1000;
-    SerialUSB.println(String("waiting for fix ..., timeout=") + timeout + String("ms"));
-    #ifndef NOGPS
-    //scan turns on the gps, 'false' turns it off again.
-    if (sodaq_gps.scan(false, timeout)) {
-        SerialUSB.println(String(" time to find fix: ") + (millis() - start) + String("ms"));
-        if(withSendDelay){
-            unsigned long delayTime = 15000 - (millis() - start);
-            SerialUSB.println(String("sleep for: ") + (millis() - start) + String(" before sending to prevent lora congestion"));
-            delay(delayTime);
-        }
-        SerialUSB.println(String(" datetime = ") + sodaq_gps.getDateTimeString());
-        SerialUSB.println(String(" lat = ") + String(sodaq_gps.getLat(), 7));
-        SerialUSB.println(String(" lon = ") + String(sodaq_gps.getLon(), 7));
-        SerialUSB.println(String(" num sats = ") + String(sodaq_gps.getNumberOfSatellites()));
-
-        Device.Queue((float)sodaq_gps.getLat());
-        Device.Queue((float)sodaq_gps.getLon());
-        Device.Queue((float)10.);
-        Device.Queue((float)10.);
-        signalSendResult(Device.Send(GPS));
-    }
-    else {
-        SerialUSB.println("No Fix");
-    }
-    #else
-    SerialUSB.println("simulating GPS coordinates");
-    delay(15000);
-    SerialUSB.println("sleep 15 sec before getting gps fix and sending it, so that we don't send the data to quickly for lora"); 
-    Device.Queue((float)50.);
-    Device.Queue((float)11.);
-    Device.Queue((float)10.);
-    Device.Queue((float)10.);
-    signalSendResult(Device.Send(GPS));
-    #endif
-}
-
-//sends the specified state value to the NSP. Also sends a GPS fix if we succeeded in sending the state.
-//also signals the user about the state (red or green led are activated.)
-void sendState(bool value)
-{
-	Modem.Wakeup();											//the modem is sleeping by default, need to wake it up to send something
-    SerialUSB.print("sending state: "); SerialUSB.println(value);
-    int8_t retryCount = 0;
-    int pin = value ? LED_RED : LED_GREEN;
-    digitalWrite(pin, LOW);                                 //turn the led on to signal the state.
-    bool sendResult = Device.Send(value, PUSH_BUTTON);
-    digitalWrite(pin, HIGH);
-    while (!sendResult && retryCount < MAX_SEND_RETRIES){   //it's crucial that we report movement. Could be the sign of a stolen object. so block until we managed to send it out.
-        retryCount++;
-        signalSendResult(false);
-        delay((RESEND_DELAY * 1000) - 2000);                //we do 2000 cause that's how long the signalSendResult takes.
-        sendResult = Device.Send(value, PUSH_BUTTON);
-    }
-    if(sendResult){
-        _resendWasMoving = false;                           //don't need to resend the same value cause we were succesful in sending it out.
-        sendGPSFix(true);
-    }
-    else if (value == true){
-        _resendWasMoving = true;                            //the fact that the device is moving is very important, it could be stolen, so if we failed to send the message, retry later on.
-        SerialUSB.println("retrying to send value 'true' on next run"); 
-    }
-	Modem.Sleep();											//when done, put the modem back to sleep to save battery power.
-}
- 
-//stores and sends the 'movement value to the cloud + also sends the gps coordinates.
-void setState(bool value)
-{
-    _wasMoving = value;
-    SerialUSB.print("curr moving state: "); SerialUSB.println(value);
-    sendState(value);
-} 
- 
-void setup()
-{
-    SerialUSB.begin(57600);
-    
-    sodaq_gps.init();                                       //do this as early as possible, so we have a workign gps.
-	#ifdef DEBUG											//when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
-    while(!SerialUSB){}
-	#endif
-    SerialUSB.println("start");
-    initPower();
-    initLeds();
-    setPower(HIGH);                                         //turn board on
-    resetAllDigitalPins();
-
-    // Note: It is more power efficient to leave Serial1 running
-    Serial1.begin(Modem.getDefaultBaudRate());              // init the baud rate of the serial connection so that it's ok for the modem
-    while (!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY));
-    SerialUSB.println("Ready to send data");
-
-    Wire.begin();
-    compass.init(LSM303::device_D);
-    compass.enableDefault();
-    int16_t x, y = 0;                                       //the current x, y, z acceleration values (for gravity compensation)
-    calibrate(x, y);
-    prepareInterrupts(x, y);
-    setState(false);
-    delay(15000);                                           //make certain that we don't over-user the lora network.
-    reportBatteryStatus(Modem, Device);                     //send the current battery status at startup to report init state.
-    startReportingBattery(rtc);
 }
 
 void onSleepDone() 
@@ -255,13 +131,246 @@ void onSleepDone()
 //set up an interupt to wake up the device in 5 minutes time
 void setWakeUpClock()
 {
-    rtc.setAlarmSeconds(WAKEUP_EVERY_SEC);                      // Schedule the wakeup interrupt
-    rtc.setAlarmMinutes(WAKEUP_EVERY_MIN);
+    if(_gpsScanning){
+		if(_foundGPSFix){										//if we already found a fix before, we can get a new one really fast, so we use a short delay. If we havent, it will take a longer time.
+			rtc.setAlarmSeconds(GPS_WAKEUP_EVERY_SEC);                      // Schedule the wakeup interrupt
+			rtc.setAlarmMinutes(GPS_WAKEUP_EVERY_MIN);
+		}
+		else{
+			rtc.setAlarmSeconds(GPS_WAKEUP_EVERY_SEC * 5);
+			rtc.setAlarmMinutes(GPS_WAKEUP_EVERY_MIN);
+		}
+    }else{
+        rtc.setAlarmSeconds(params.getFixIntervalSeconds());                      // Schedule the wakeup interrupt
+        rtc.setAlarmMinutes(params.getFixIntervalMinutes());
+    }
     rtc.enableAlarm(RTCZero::MATCH_MMSS);                       // MATCH_SS
     rtc.attachInterrupt(onSleepDone);                           // Attach handler so that we can set the battery flag when the time has passed.
     rtc.setEpoch(0);                                            // This sets it to 2000-01-01
     SerialUSB.println("sleep for some time");
 }
+
+//starts up the gps unit and sets a flag so that the main loop knows we need to scan the gps (async scanning).
+void startGPSFix()
+{
+    if(_gpsScanning == false){                                  //only try to start it if the gps is already running, otherwise, we might reset the thing and never get a fix.
+        unsigned long start = millis();
+        uint32_t timeout = params.getGpsFixTimeout() * 1000;
+        SerialUSB.println(String("spinning up gps ..., timeout=") + timeout + String("ms"));
+        sodaq_gps.startScan(start, timeout);
+        _gpsScanning = true;
+        setWakeUpClock();
+    }
+}
+
+//stops the async scanning of the gps module
+void stopGPSFix()
+{
+    SerialUSB.println("shutting down gps");
+    sodaq_gps.endScan();
+    _gpsScanning = false;
+    if(params.getUseAccelero())
+        startReportingBattery(rtc);                         //after we found the gps, the timer becomes free (is no longer used), so battery would no longer be checked. need to start this up again.
+    else
+        setWakeUpClock();
+}
+
+//gets the current location from the gps and sends it to the cloud.
+//withSendDelay: when true, the function will pause (15 sec) before sending the message. The 15 sec is in total, so getting a gps fix is included in that time.
+//returns true if the operation was terminated. Otherwise false
+bool trySendGPSFix()
+{
+	SerialUSB.println("scanning gps");
+    if (sodaq_gps.tryScan(10)) {
+        unsigned long duration = millis() - sodaq_gps.getScanStart();
+        SerialUSB.println(String(" time to find fix: ") + duration + String("ms"));
+        Modem.WakeUp(); 
+        stopGPSFix();
+        //if(withSendDelay && duration < 15000){
+        //    unsigned long delayTime = 15000 - duration;
+        //    SerialUSB.println(String("sleep for: ") + delayTime + String(" before sending to prevent lora congestion"));
+        //    delay(delayTime);
+       // }
+        SerialUSB.println(String(" datetime = ") + sodaq_gps.getDateTimeString());
+        SerialUSB.println(String(" lat = ") + String(sodaq_gps.getLat(), 7));
+        SerialUSB.println(String(" lon = ") + String(sodaq_gps.getLon(), 7));
+        SerialUSB.println(String(" num sats = ") + String(sodaq_gps.getNumberOfSatellites()));
+
+        Device.Queue((float)sodaq_gps.getLat());
+        Device.Queue((float)sodaq_gps.getLon());
+        Device.Queue((float)10.);
+        Device.Queue((float)10.);
+        signalSendStart();
+        signalSendResult(Device.Send(GPS));
+        Modem.Sleep();
+		_foundGPSFix = true;
+		return true;
+    }
+    else if(sodaq_gps.scanTimedOut()){
+        stopGPSFix();
+        SerialUSB.println("GPS module stopped: failed to find fix. new GPS fix will be attempted upon next change in movement");
+		return true;
+    }
+    else
+        SerialUSB.println("No GPS Fix yet");
+	return false;
+}
+
+//sends the specified state value to the NSP. Also sends a GPS fix if we succeeded in sending the state.
+//also signals the user about the state (red or green led are activated.)
+bool sendState(bool value)
+{
+    startGPSFix();                                      //spin up the gps module as fast as possible
+    Modem.WakeUp();                                         //the modem is sleeping by default, need to wake it up to send something
+    SerialUSB.print("sending state: "); SerialUSB.println(value);
+    signalSendStart();
+    bool result = Device.Send(value, PUSH_BUTTON);
+    Modem.Sleep();                                          //when done, put the modem back to sleep to save battery power.
+    signalSendResult(result);
+    if(result){
+        //_resendWasMoving = false;                           //don't need to resend the same value cause we were succesful in sending it out.
+        trySendGPSFix();
+    }
+    else{ 
+        stopGPSFix();                                       //something went wrong, can't send a value, so can't send gps, no need to get a fix, save battery.
+//        if (value == true){
+//            _resendWasMoving = true;                            //the fact that the device is moving is very important, it could be stolen, so if we failed to send the message, retry later on.
+//            SerialUSB.println("retrying to send value 'true' on next run"); 
+//        }
+    }    
+    return result;
+}
+ 
+//stores and sends the 'movement value to the cloud + also sends the gps coordinates.
+bool setState(bool value)
+{
+    _wasMoving = value;
+    SerialUSB.print("curr moving state: "); SerialUSB.println(value);
+    return sendState(value);
+} 
+ 
+/**
+ * Shows and handles the boot up menu if there is a serial port.
+ */
+void handleSerialPort()
+{
+    SerialUSB.begin(57600);
+    if (params.keysAndAddrSpecified()){                     //main configs have been supplied, use short boot cycle.
+        unsigned long start = millis();
+        pinMode(BUTTON, INPUT_PULLUP);
+        int sensorVal = digitalRead(BUTTON);
+        while(sensorVal == HIGH && start + 5000 > millis())
+            sensorVal = digitalRead(BUTTON);
+        if(sensorVal == LOW){
+			while(!SerialUSB){}                                 //wait until the serial port is connected, or time out if there is none.
+            do {
+                showBootMenu(SerialUSB);
+            } while (!params.checkConfig(SerialUSB) || !params.keysAndAddrSpecified());
+            params.showConfig(&SerialUSB);
+        }
+    }
+    else{
+        while(!SerialUSB){}                                 //wait until the serial port is connected, or time out if there is none.
+        do {
+            showBootMenu(SerialUSB);
+        } while (!params.checkConfig(SerialUSB) || !params.keysAndAddrSpecified());
+        params.showConfig(&SerialUSB);
+    }
+}
+
+/**
+ * Converts the given hex array and returns true if it is valid hex and non-zero.
+ * "hex" is assumed to be 2*resultSize bytes.
+ */
+bool convertAndCheckHexArray(uint8_t* result, const char* hex, size_t resultSize)
+{
+    bool foundNonZero = false;
+
+    uint16_t inputIndex = 0;
+    uint16_t outputIndex = 0;
+
+    // stop at the first string termination char, or if output buffer is over
+    while (outputIndex < resultSize && hex[inputIndex] != 0 && hex[inputIndex + 1] != 0) {
+        if (!isxdigit(hex[inputIndex]) || !isxdigit(hex[inputIndex + 1])) {
+            return false;
+        }
+
+        result[outputIndex] = HEX_PAIR_TO_BYTE(hex[inputIndex], hex[inputIndex + 1]);
+
+        if (result[outputIndex] > 0) {
+            foundNonZero = true;
+        }
+
+        inputIndex += 2;
+        outputIndex++;
+    }
+
+    result[outputIndex] = 0; // terminate the string
+
+    return foundNonZero;
+}
+
+void connect()
+{
+	uint8_t devAddr[4];
+	uint8_t appSKey[16];
+	uint8_t nwkSKey[16];
+
+	bool allParametersValid = convertAndCheckHexArray((uint8_t*)devAddr, params.getDevAddrOrEUI(), sizeof(devAddr))
+		&& convertAndCheckHexArray((uint8_t*)appSKey, params.getAppSKeyOrEUI(), sizeof(appSKey))
+		&& convertAndCheckHexArray((uint8_t*)nwkSKey, params.getNwSKeyOrAppKey(), sizeof(nwkSKey));
+		
+	if(!allParametersValid){
+		SerialUSB.println("Invalid parameters for the lora connection, can't start up lora modem.");
+		return;
+	}
+	//Device.SetMinTimeBetweenSend(150000);					//we are sending out many messages after each other, make certain that they don't get blocked by base station.
+	// Note: It is more power efficient to leave Serial1 running
+    Serial1.begin(Modem.getDefaultBaudRate());              // init the baud rate of the serial connection so that it's ok for the modem
+    Modem.Sleep();                                          //make certain taht the modem is synced and awake.
+    delay(50);
+    Modem.WakeUp();
+    while (!Device.Connect(devAddr, appSKey, nwkSKey));
+    SerialUSB.println("Ready to send data");
+}
+ 
+void setup()
+{   
+    sodaq_gps.init();                                       //do this as early as possible, so we have a workign gps.
+    sodaq_gps.setDiag(SerialUSB);
+	params.read();                                          //get any previously saved configs, if there are any (otherwise use default).
+    initPower();
+    initLeds(params.getIsLedEnabled());
+    setPower(HIGH);                                         //turn board on
+    BlueLedOn();                                            //indicate start of device
+    handleSerialPort();
+	delay(1000);
+    SerialUSB.println("start of tracker demo v1.0");
+	rtc.begin();
+    connect();
+
+    Wire.begin();
+    BlueLedOff();                                           //indicate end of init  
+	//initLeds(params.getIsLedEnabled());
+    if(params.getUseAccelero()){
+        compass.init(LSM303::device_D);
+        compass.enableDefault();
+        int16_t x, y = 0;                                       //the current x, y, z acceleration values (for gravity compensation)
+        calibrate(x, y);
+        prepareInterrupts(x, y);
+        //the default state of the accelero meter is shut-down mode.
+        if(setState(false) == true){
+            delay(3000);                                            //small delay for the lora congestion. It's not enough, but will do. First gps fix (3th message) usually takes a while 
+            reportBatteryStatus(Modem, Device);                     //send the current battery status at startup to report init state. This also puts the modem a sleep.
+        }
+	}
+    else{
+		reportBatteryStatus(Modem, Device);
+        startGPSFix();
+	}
+    SerialUSB.println("tracker demo running");
+}
+
 
 bool isMoving()
 {
@@ -285,42 +394,89 @@ bool isMoving()
         SerialUSB.print("accelero dif: "); SerialUSB.println(div);
         count += div > MAX_MOVEMENT_TOLERANCE? 1: 0;
     }
-    return count > 2;
+    return count > params.getAcceleroSensitivity();
 }
 
+//called if the device detected previous movement and is know using a timer to wake up and check if there is still movement.
+//When this is the case, send gps fix. Otherwise, signal that movement has stopped, recalibrate and set up the interrupts again.
+void checkIfStillMoving()
+{
+    int16_t x, y = 0;                                       //the current x, y, z acceleration values (for gravity compensation)
+    if (isMoving() == false) {                              //no more movement: report movement has stopped + start reporting battery again  + enable accelero interrupts again.
+        SerialUSB.println("movement stopped");
+        setState(false);
+        calibrate(x, y);           
+        setThresholds(x, y);
+        activateAcceleroInterupts();
+		if(_gpsScanning)									//if we are still scanning the gps, then the timer also needs to be activated again.
+			setWakeUpClock();
+		else
+			startReportingBattery(rtc);
+    }
+    else{
+        SerialUSB.println("movement continues");
+		if(_gpsScanning == false)
+			startGPSFix();
+		else
+			setWakeUpClock();										//restart the timer
+    }
+}
+
+/*
+unsigned long _tempLastReportedAt = 0;				//last time that temp was sent to the cloud.
+
+void tryReportTemp()
+{
+	if(_tempLastReportedAt + (params.getFixIntervalSeconds()) * 1000 <= millis()){		//we try to report temp at roughly the same rate as the timer interval.
+		_tempLastReportedAt = millis();
+		
+		if(params.getUseAccelero() == false)
+			setLsm303Active(true);
+
+		uint8_t tempL = lsm303.readReg(LSM303::TEMP_OUT_L);
+		uint8_t tempH = lsm303.readReg(LSM303::TEMP_OUT_H);
+		int16_t temp = (int16_t)(((uint16_t)tempH << 8) | tempL);
+
+		if(params.getUseAccelero() == false)
+			setLsm303Active(false);
+		
+	}
+}*/
 
 void loop()
 {
     tryReportBattery(Modem, Device); 
-    if(_resendWasMoving)                                        //if the device started moving and we failed to send this to the cloud, then retry to send this value untill succesfull. The device might have been locked, if we don't send out this value (and the gps coordinates), then there is no alert triggered.
-        sendState(true);
-    if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
-        wakeFromTimer = false;
-        int16_t x, y = 0;                                       //the current x, y, z acceleration values (for gravity compensation)
-        if (isMoving() == false) {                              //no more movement: report movement has stopped + start reporting battery again  + enable accelero interrupts again.
-            SerialUSB.println("movement stopped");
-            setState(false);
-            startReportingBattery(rtc);                         //this resets the timer routine, so no more wakeup every x minutes.
-            quickCalibrate(x, y);           
-            setThresholds(x, y);
-            activateAcceleroInterupts();
+	//tryReportTempAndSpeed();
+    if(params.getUseAccelero()){
+        if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
+            wakeFromTimer = false;
+            
+            if(_wasMoving)
+                checkIfStillMoving();
+            else if(_gpsScanning){                                       //if we still need to send a gps fix, try to do it now.             
+                if(!trySendGPSFix())								//if the gps fix operation didn't finish, then we still need to restart the timer, otherwise it already happened.
+					setWakeUpClock();
+			}
         }
-        else{
-			Modem.WakeUp();							//SendGPSFix doesn't wake up the modem, we need to do this
-            SerialUSB.println("movement continues");
-            sendGPSFix(false);
-			Modem.Sleep();
+        else if(hasMoved()){
+            SerialUSB.println("start of movement detected");
+            disableAcceleroInterupts();
+			if(_wasMoving == false)								//don't want to send the same value 2 times. This appears to happen sometimes at first, if the accelerometer buffered some data.
+				setState(true);
             setWakeUpClock();
         }
-    }
-    else if(hasMoved()){
-        SerialUSB.println("start of movement detected");
-        disableAcceleroInterupts();
-        setState(true);
-        setWakeUpClock();
+	}
+    else if (wakeFromTimer == true){
+		SerialUSB.println("wake up from timer");
+        wakeFromTimer = false;
+        if(_gpsScanning){                                       //if we already started to send a gps fix, try to see if we have some data to send.  
+            trySendGPSFix();
+			setWakeUpClock();
+		}
+        else
+            startGPSFix();
     }
     #ifndef DEBUG
-    SerialUSB.println("going to sleep");
     sleep();
     #endif
 }

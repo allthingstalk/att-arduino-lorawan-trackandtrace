@@ -50,9 +50,6 @@ Sodaq_UBlox_GPS::Sodaq_UBlox_GPS()
     _diagStream = 0;
     _addr = UBlox_I2C_addr;
 
-    _minNumOfLines = 0;
-    _minNumSatellites = 0;
-
     resetValues();
 
     _trans_active = false;
@@ -80,58 +77,51 @@ void Sodaq_UBlox_GPS::init()
 {
     Wire.begin();
 	pinMode(GPS_ENABLE, OUTPUT);
-    digitalWrite(GPS_ENABLE, GPS_ENABLE_OFF);
+    digitalWrite(GPS_ENABLE, GPS_ENABLE_ON);
 }
 
-/*!
- * Read the UBlox device until a fix is seen, or until
- * a timeout has been reached.
- */
-bool Sodaq_UBlox_GPS::scan(bool leave_on, uint32_t timeout)
+uint32_t Sodaq_UBlox_GPS::getScanStart()
 {
-    bool retval = false;
-    uint32_t start = millis();
-    resetValues();
-
-    on();
-    delay(500);         // TODO Is this needed?
-
-    size_t fix_count = 0;
-    while (!is_timedout(start, timeout)) {
-        if (!readLine()) {
-            // TODO Maybe quit?
-            continue;
-        }
-        parseLine(_inputBuffer);
-
-        // Which conditions are required to quit the scan?
-        if (_seenLatLon
-                && _seenTime
-                && (_minNumSatellites == 0 || _numSatellites >= _minNumSatellites)) {
-            ++fix_count;
-            if (fix_count >= _minNumOfLines) {
-                retval = true;
-                break;
-            }
-        }
-    }
-
-    if (_numSatellites > 0) {
-        debugPrintLn(String("[scan] num sats = ") + _numSatellites);
-    }
-    if (_seenTime) {
-        debugPrintLn(String("[scan] datetime = ") + getDateTimeString());
-    }
-    if (_seenLatLon) {
-        debugPrintLn(String("[scan] lat = ") + String(_lat, 7));
-        debugPrintLn(String("[scan] lon = ") + String(_lon, 7));
-    }
-
-    if (!leave_on) {
-        off();
-    }
-    return retval;
+	return _scanStart;
 }
+
+//resets all the params to start a new async scan.
+//the scan will time out after specified amount of time.
+//to perform the actual scan, use 'tryScan'.
+void Sodaq_UBlox_GPS::startScan(uint32_t start, uint32_t timeout)
+{
+	on();
+	resetValues();
+	_scanTimeout = timeout;
+	_scanStart = start;
+}
+
+//terminates the current scan
+void Sodaq_UBlox_GPS::endScan()
+{
+	off();
+}
+
+//returns true when the current scan has timed out.
+bool Sodaq_UBlox_GPS::scanTimedOut()
+{
+	return is_timedout(_scanStart, _scanTimeout);
+}
+
+//tries to scan the gps for the specified nr of times.
+//returns true when a fix was found, otherwise false
+bool Sodaq_UBlox_GPS::tryScan(int nrTries)
+{
+	for(int i = 0; i < nrTries; i++) {
+        if (!readLine()) return false;
+        parseLine(_inputBuffer);
+        if (_seenLatLon && _seenTime) 
+			return true;
+    }
+	return false;
+}
+
+
 
 String Sodaq_UBlox_GPS::getDateTimeString()
 {

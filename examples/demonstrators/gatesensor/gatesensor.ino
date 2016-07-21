@@ -134,10 +134,12 @@ void setup()
     initPower();
     initLeds();
     setPower(HIGH);                             		//turn board on
-    resetAllDigitalPins();
 	setGPSPower(LOW);                                   // Disable GPS
     
     Serial1.begin(Modem.getDefaultBaudRate());  // init the baud rate of the serial connection so that it's ok for the modem. It is more power efficient to leave Serial1 running
+	Modem.Sleep();										//make certain taht the modem is synced and awake.
+	delay(50);
+    Modem.WakeUp();
     while (!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY));
     SerialUSB.println("Ready to send data");
 
@@ -158,6 +160,7 @@ void setup()
     signalSendResult(Device.Send(false, BINARY_SENSOR));
     delay(15000);                                           //make certain that we don't over-user the lora network.
     reportBatteryStatus(Modem, Device);                            //send the current battery status at startup to report init state.
+	Modem.Sleep();
     startReportingBattery(rtc);
 }
 

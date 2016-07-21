@@ -13,7 +13,7 @@
  *
  **/
  
-//#define DEBUG                             //put the following line in comment to turn on deep sleep mode. When debug is defined, the device will not go into deep sleep mode and the serial monitor will remain available.
+#define DEBUG                             //put the following line in comment to turn on deep sleep mode. When debug is defined, the device will not go into deep sleep mode and the serial monitor will remain available.
 
 #define MAGNETO_NR_CALIBRATION_STEPS 20     // the nr of iterations used during calibration of the device.
 #define MAGNETO_INTERRUPT_SENSITIVITY 70    // (max 15 bits) the higher the number, the less sensitive the sensor is (the bigger the change in magnetic field has to be)
@@ -99,7 +99,6 @@ uint16_t reCalibrate()
 void prepareMagneto(uint16_t maxMagneto)
 {
     uint16_t threshold;
-    SerialUSB.println("preparing to detect change from empty to full parking space.");
     writeReg(0x12, 0b11100001); // Axes mask
     threshold = (maxMagneto + MAGNETO_INTERRUPT_SENSITIVITY) & ~(1 << 15);
     
@@ -108,6 +107,7 @@ void prepareMagneto(uint16_t maxMagneto)
     
     writeReg(0x22, 0b00001000);                         //start interrupt 
     writeReg(0x23, 0b00000000);
+	SerialUSB.println("ready to detect change from empty to full parking space.");
 }
 
 void stopMagnetoIntertupt()
@@ -117,19 +117,21 @@ void stopMagnetoIntertupt()
 
 void setup() 
 {
-	SerialUSB.begin(57600);
-    #ifdef DEBUG											//when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
+    SerialUSB.begin(57600);
+    #ifdef DEBUG                                            //when debugging is selected, we need the serialUSB. When in real-world use mode, this would make the application stuck.
     while(!SerialUSB){}
-	#endif
+    #endif
     SerialUSB.println("start");
 
     initPower();
     initLeds();
     setPower(HIGH);                                     //turn board on
-    resetAllDigitalPins();
     setGPSPower(LOW);                                   // Disable GPS
-        
+
     Serial1.begin(Modem.getDefaultBaudRate());          // init the baud rate of the serial connection so that it's ok for the modem. It is more power efficient to leave Serial1 running
+	Modem.Sleep();										//make certain taht the modem is synced and awake.
+	delay(50);
+    Modem.WakeUp();
     while (!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY));
     SerialUSB.println("Ready to send data");    
         
@@ -142,11 +144,10 @@ void setup()
     writeReg(0x26, 0b00000000);                         // CTRL7: Magnetic sensor in Continous-conversion mode
     
     prepareMagneto(calibrateEmptyParking());
-	Modem.WakeUp();
     signalSendResult(Device.Send(true, BINARY_SENSOR)); // send state to cloud + inform user if the send failed.
-	Modem.Sleep();
-    delay(15000);                                       //make certain that we don't over-user the lora network.
+	delay(15000); 										//make certain that we don't over-user the lora network.
     reportBatteryStatus(Modem, Device);                 //send the current battery status at startup to report init state.
+	Modem.Sleep();                                      
     startReportingBattery(rtc);
 }
 
@@ -191,14 +192,14 @@ bool checkEmptyParkingSpace()
 //Signal the user if send failed.
 void updateParkingSpace(bool value)
 {
-	Modem.WakeUp();
+    Modem.WakeUp();
     _isEmpty = value;
     int pin = value ? LED_GREEN : LED_RED;
     digitalWrite(pin, LOW);
     bool sendResult = Device.Send(_isEmpty, BINARY_SENSOR);
     digitalWrite(pin, HIGH);
     signalSendResult(sendResult);
-	Modem.Sleep();
+    Modem.Sleep();
 }
 
 void loop()
@@ -224,8 +225,8 @@ void loop()
     }
     //have to read reg 0x13 on every run, otherwise the interrupt wont trigger.
     int16_t x_val, y_val, z_val;
-    readMagneto(x_val, y_val, z_val);
-    SerialUSB.println(String("Magnetometer Readings: ") + x_val + ", " + y_val + ", " + z_val);
+    //readMagneto(x_val, y_val, z_val);
+    //SerialUSB.println(String("Magnetometer Readings: ") + x_val + ", " + y_val + ", " + z_val);
     readReg(0x13);
 
     #ifndef DEBUG

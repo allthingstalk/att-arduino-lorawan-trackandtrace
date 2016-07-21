@@ -14,6 +14,18 @@
 
 #define SENDBATTERYEVERY 86400000					//send battery every 24 hours, used to check time if we missed a hartbeat from the interrupt clock.
 
+bool _ledsEnabled = true;
+
+
+void RedLedOn() { if(_ledsEnabled) digitalWrite(LED_RED, LOW); };
+void RedLedOff() { if(_ledsEnabled) digitalWrite(LED_RED, HIGH); };
+
+void GreenLedOn() { if(_ledsEnabled) digitalWrite(LED_GREEN, LOW); };
+void GreenLedOff() { if(_ledsEnabled) digitalWrite(LED_GREEN, HIGH); };
+
+void BlueLedOn() { if(_ledsEnabled) digitalWrite(LED_BLUE, LOW); };
+void BlueLedOff() { if(_ledsEnabled) digitalWrite(LED_BLUE, HIGH); };
+
 
 //power
 
@@ -35,58 +47,68 @@ void setPower(int8_t value)
 
 ///pins and leds
 
-void initLeds()
+void initLeds(bool enabled)
 {
 	pinMode(LED_RED, OUTPUT);
 	pinMode(LED_GREEN, OUTPUT);
 	pinMode(LED_BLUE, OUTPUT);
-}
-
-void resetAllDigitalPins()
-{
-	for (uint8_t i = 0; i < NUM_DIGITAL_PINS; i++)
-	{
-		resetPin(i);
-	}
-}
-
-void resetPin(uint8_t pin)
-{
-	PORT->Group[g_APinDescription[pin].ulPort].PINCFG[g_APinDescription[pin].ulPin].reg = (uint8_t)(0);
-	PORT->Group[g_APinDescription[pin].ulPort].DIRCLR.reg = (uint32_t)(1 << g_APinDescription[pin].ulPin);
-	PORT->Group[g_APinDescription[pin].ulPort].OUTCLR.reg = (uint32_t)(1 << g_APinDescription[pin].ulPin);
+	digitalWrite(LED_RED, HIGH);			//turn off the leds
+	digitalWrite(LED_GREEN, HIGH);
+	digitalWrite(LED_BLUE, HIGH);
+	_ledsEnabled = enabled;
 }
 
 void informStartOfCalibration()
 {
 	//let user know that the procedure will start
 	SerialUSB.println("begin calibration");
-	GreenLedOff();
-	RedLedOff();
-	BlueLedOn();
-	delay(4000);
-	BlueLedOff();
-	RedLedOn();
+	if(_ledsEnabled){
+		GreenLedOff();
+		RedLedOff();
+		BlueLedOn();
+		delay(4000);
+		BlueLedOff();
+		RedLedOn();
+	}
 }
 void informEndOfCalibration()
 {
 	//let user know that the procedure is done.
 	SerialUSB.println("end calibration");
 	RedLedOff();
-	GreenLedOn();
-	delay(2000);
-	GreenLedOff();
+}
+
+void signalSendStart()
+{
+	BlueLedOn();
+	/*for(int i = 0; i < 5; i++){
+		delay(200);
+		BlueLedOn();
+		delay(200);
+		BlueLedOff();
+	}*/
 }
 
 //sends the value to the NSP. If this operation failed, the red led will blink 3 times.
 void signalSendResult(bool value)
 {
-	if(value == false){					//if we failed to send the message, indicate with led.
-		for(int i = 0; i < 5; i++){
-			delay(200);
-			RedLedOn();
-			delay(200);
-			RedLedOff();
+	if(_ledsEnabled){						//when leds are disabled, don't do the entire routine. it just takes up time.
+		BlueLedOff();
+		if(value == false){					//if we failed to send the message, indicate with led.
+			for(int i = 0; i < 5; i++){
+				delay(200);
+				RedLedOn();
+				delay(200);
+				RedLedOff();
+			}
+		}
+		else{
+			for(int i = 0; i < 5; i++){
+				delay(200);
+				GreenLedOn();
+				delay(200);
+				GreenLedOff();
+			}
 		}
 	}
 }
@@ -206,7 +228,6 @@ void startReportingBattery(RTCZero &rtc)
 {
 	_reportBattery = false;
 
-	rtc.begin();
 	rtc.setAlarmSeconds(BATTERY_REPORT_SEC);						// Schedule the wakeup interrupt
 	rtc.setAlarmMinutes(BATTERY_REPORT_MIN);
 	rtc.setAlarmHours(BATTERY_REPORT_HOUR);
@@ -231,14 +252,28 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	modem.WakeUp();
 	SerialUSB.println("reporting battery status");
 	uint16_t batteryVoltage = analogRead(BATVOLTPIN);
-	uint16_t battery = (uint16_t)((ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage);
+	uint16_t battery = (ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage;
 	battery = (battery - 3000) / 10;
 	if (battery > 255)
 		battery = 100;
 	else
-		battery = (uint16_t)((100.0 / 255) * battery);
+		battery = (100.0 / 255.0) * (uint8_t)battery;
 	SerialUSB.print("level: ");  SerialUSB.println(battery);
-	if(device.Send((short)battery, BATTERY_LEVEL))
+	
+	
+	uint16_t voltage = (uint16_t)((ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage);
+    voltage = (voltage - 3000) / 10;
+
+    SerialUSB.print("level 2: "); SerialUSB.println(voltage > 255 ? 255 : (uint8_t)voltage);
+	
+	
+	
+	signalSendStart();
+	bool sendResult = device.Send((short)battery, BATTERY_LEVEL);
+	signalSendResult(sendResult);
+	if(sendResult)
 		_batteryLastReportedAt = curTime;
+		
 	modem.Sleep();
 }
+

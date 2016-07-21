@@ -29,7 +29,12 @@ public:
     Sodaq_UBlox_GPS();
 
     void init();
-    bool scan(bool leave_on=false, uint32_t timeout=20000);
+	void startScan(uint32_t start, uint32_t timeout);
+	bool tryScan(int nrTries);
+	bool scanTimedOut();
+	void endScan();
+	uint32_t getScanStart();
+	
     String getDateTimeString();
     double getLat() { return _lat; }
     double getLon() { return _lon; }
@@ -41,11 +46,6 @@ public:
     uint8_t getMinute() { return _mm; }        // 0..
     uint8_t getSecond() { return _ss; }        // 0..
 
-    // How many extra lines must scan see before it stops? This is merely for debugging
-    void setMinNumOfLines(size_t num) { _minNumOfLines = num; }
-
-    // The minimum number of satellites to satisfy scan
-    void setMinNumSatellites(size_t num) { _minNumSatellites = num; }
 
     // Sets the optional "Diagnostics and Debug" stream.
     void setDiag(Stream &stream) { _diagStream = &stream; }
@@ -84,11 +84,6 @@ private:
 
     uint8_t     _addr;
 
-    size_t      _minNumOfLines;
-
-    // Minimum number of satellites to satisfy scan(). Zero means any number is OK.
-    size_t      _minNumSatellites;
-
     bool        _seenLatLon;
     uint8_t     _numSatellites;
     double      _lat;
@@ -107,6 +102,9 @@ private:
     static const char _fieldSep;
     char *      _inputBuffer;
     size_t      _inputBufferSize;
+	
+	uint32_t _scanStart;
+	uint32_t _scanTimeout;
 };
 
 extern Sodaq_UBlox_GPS sodaq_gps;

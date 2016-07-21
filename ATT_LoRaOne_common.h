@@ -14,26 +14,37 @@
 
 //////////////////////
 //power
+
+//extern bool _ledsEnabled;
+
 void initPower();
 void setGPSPower(int8_t value);
 void setPower(int8_t value);
 //////////////////////
-//pins and leds
-void initLeds();
-void resetAllDigitalPins();
-void resetPin(uint8_t pin);
+//init leds. When enabled, leds will be shown, otherwise not. default ist true.
+void initLeds(bool enabled = true);
 void informStartOfCalibration();
 void informEndOfCalibration();
 void signalSendResult(bool value);
+void signalSendStart();
 
-inline void RedLedOn() { digitalWrite(LED_RED, LOW); };
-inline void RedLedOff() { digitalWrite(LED_RED, HIGH); };
+/*inline void RedLedOn() { if(_ledsEnabled) digitalWrite(LED_RED, LOW); };
+inline void RedLedOff() { if(_ledsEnabled) digitalWrite(LED_RED, HIGH); };
 
-inline void GreenLedOn() { digitalWrite(LED_GREEN, LOW); };
-inline void GreenLedOff() { digitalWrite(LED_GREEN, HIGH); };
+inline void GreenLedOn() { if(_ledsEnabled) digitalWrite(LED_GREEN, LOW); };
+inline void GreenLedOff() { if(_ledsEnabled) digitalWrite(LED_GREEN, HIGH); };
 
-inline void BlueLedOn() { digitalWrite(LED_BLUE, LOW); };
-inline void BlueLedOff() { digitalWrite(LED_BLUE, HIGH); };
+inline void BlueLedOn() { if(_ledsEnabled) digitalWrite(LED_BLUE, LOW); };
+inline void BlueLedOff() { if(_ledsEnabled) digitalWrite(LED_BLUE, HIGH); };
+*/
+void RedLedOn();
+void RedLedOff();
+
+void GreenLedOn();
+void GreenLedOff();
+
+void BlueLedOn();
+void BlueLedOff();
 
 
 //////////////////////
