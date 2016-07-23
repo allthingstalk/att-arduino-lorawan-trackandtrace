@@ -63,6 +63,8 @@ void Sodaq_UBlox_GPS::resetValues()
     _numSatellites = 0;
     _lat = 0;
     _lon = 0;
+	_alt = 0;
+	_speed = 0;
 
     _seenTime = false;
     _hh = 0;
@@ -217,6 +219,7 @@ bool Sodaq_UBlox_GPS::parseGPGGA(const String & line)
             _lon = -_lon;
         }
         _seenLatLon = true;
+		_alt = getField(line, 10).toFloat();
     }
 
     _numSatellites = getField(line, 7).toInt();
@@ -269,6 +272,7 @@ bool Sodaq_UBlox_GPS::parseGPRMC(const String & line)
             _lon = -_lon;
         }
         _seenLatLon = true;
+		_speed = getField(line,7).toFloat();
     }
 
     String time = getField(line, 1);

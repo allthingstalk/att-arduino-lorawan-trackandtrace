@@ -54,10 +54,16 @@ static void quitMenu(const Command* a, const char* line)
     _runMenu = false;
 }
 
+static void reset(const Command* a, const char* line)
+{
+	params.reset();
+}
+
 
 static const Command args[] = {
 	{ "quit", "q", quitMenu, Command::show_string },
-    { "save & quit", "s", commitAndQuit, Command::show_string }
+    { "save & quit", "s", commitAndQuit, Command::show_string },
+	{ "factory reset", "r", reset, Command::show_string }
 };
 
 static void showMyCommands(Stream* stream)

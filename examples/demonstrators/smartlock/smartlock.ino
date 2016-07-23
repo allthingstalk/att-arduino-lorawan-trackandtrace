@@ -24,7 +24,6 @@
 #include "BootMenu.h"
 
 
-#define DEBUG
 
 
 #define GPS_WAKEUP_EVERY_SEC 5                 //seconds part of the clock that wakes up the device for retrieving a GPS fix.    
@@ -128,6 +127,8 @@ void onSleepDone()
     wakeFromTimer = true;
 }
 
+//unsigned long _nextIntervalAt = 0;								// when a wakeupclock is initialized, this value keeps track of when the next interval impuls should be given, so that we can also do	
+
 //set up an interupt to wake up the device in 5 minutes time
 void setWakeUpClock()
 {
@@ -150,10 +151,67 @@ void setWakeUpClock()
     SerialUSB.println("sleep for some time");
 }
 
+/*
+unsigned long _tempLastReportedAt = 0;				//last time that temp was sent to the cloud.
+
+void tryReportTemp()
+{
+	if(_tempLastReportedAt + (params.getFixIntervalSeconds()) * 1000 <= millis()){		//we try to report temp at roughly the same rate as the timer interval.
+		_tempLastReportedAt = millis();
+		
+		reportTemp();
+		
+	}
+}*/
+
+/**
+* Initializes the LSM303 or puts it in power-down mode.
+WARNING:::  only use this function when not using the accelero interrupts (when turning on). Off is ok
+*/
+void setLsm303Active(bool on)
+{
+    if (on) {
+        if (!compass.init(LSM303::device_D, LSM303::sa0_low)) {
+            SerialUSB.println("Initialization of the LSM303 failed!");
+            return;
+        }
+
+        compass.enableDefault();
+        compass.writeReg(LSM303::CTRL5, compass.readReg(LSM303::CTRL5) | 0b10000000);
+    }
+    else {
+        compass.writeReg(LSM303::CTRL1, 0);			// disable accelerometer, power-down mode
+        compass.writeReg(LSM303::CTRL5, 0);			// zero CTRL5 (including turn off TEMP sensor)
+        compass.writeReg(LSM303::CTRL7, 0b00000010);	// disable magnetometer, power-down mode
+    }
+}
+
+void reportTemp()
+{
+	if(params.getUseAccelero() == false){
+		setLsm303Active(true);
+		delay(500);										//give the accelero some time to do some meausurements.
+	}
+
+	uint8_t tempL = compass.readReg(LSM303::TEMP_OUT_L);
+	uint8_t tempH = compass.readReg(LSM303::TEMP_OUT_H);
+	int16_t temp = (int16_t)(((uint16_t)tempH << 8) | tempL);
+	
+	if(params.getUseAccelero() == false)
+		setLsm303Active(false);
+	
+	SerialUSB.print("Device temperature = "); SerialUSB.println(temp);
+	
+	signalSendStart();
+	signalSendResult(Device.Send((float)temp, TEMPERATURE_SENSOR));
+}
+
 //starts up the gps unit and sets a flag so that the main loop knows we need to scan the gps (async scanning).
 void startGPSFix()
 {
     if(_gpsScanning == false){                                  //only try to start it if the gps is already running, otherwise, we might reset the thing and never get a fix.
+		if(!params.getUseAccelero())								//when using the timer to send gps fix, we can still send a second message  (without congesting the lora network)
+			reportTemp();
         unsigned long start = millis();
         uint32_t timeout = params.getGpsFixTimeout() * 1000;
         SerialUSB.println(String("spinning up gps ..., timeout=") + timeout + String("ms"));
@@ -186,22 +244,23 @@ bool trySendGPSFix()
         SerialUSB.println(String(" time to find fix: ") + duration + String("ms"));
         Modem.WakeUp(); 
         stopGPSFix();
-        //if(withSendDelay && duration < 15000){
-        //    unsigned long delayTime = 15000 - duration;
-        //    SerialUSB.println(String("sleep for: ") + delayTime + String(" before sending to prevent lora congestion"));
-        //    delay(delayTime);
-       // }
         SerialUSB.println(String(" datetime = ") + sodaq_gps.getDateTimeString());
         SerialUSB.println(String(" lat = ") + String(sodaq_gps.getLat(), 7));
         SerialUSB.println(String(" lon = ") + String(sodaq_gps.getLon(), 7));
+		SerialUSB.println(String(" alt = ") + String(sodaq_gps.getAlt(), 7));
+		SerialUSB.println(String(" spd = ") + String(sodaq_gps.getSpeed(), 7));
         SerialUSB.println(String(" num sats = ") + String(sodaq_gps.getNumberOfSatellites()));
 
         Device.Queue((float)sodaq_gps.getLat());
         Device.Queue((float)sodaq_gps.getLon());
-        Device.Queue((float)10.);
+        Device.Queue((float)sodaq_gps.getAlt());
         Device.Queue((float)10.);
         signalSendStart();
         signalSendResult(Device.Send(GPS));
+		if(!params.getUseAccelero()){								//when user the timer to send gps fix, we can still send a second message  (without congesting the lora network)
+			signalSendStart();
+			signalSendResult(Device.Send((short)sodaq_gps.getSpeed(), INTEGER_SENSOR));
+		}
         Modem.Sleep();
 		_foundGPSFix = true;
 		return true;
@@ -422,27 +481,6 @@ void checkIfStillMoving()
     }
 }
 
-/*
-unsigned long _tempLastReportedAt = 0;				//last time that temp was sent to the cloud.
-
-void tryReportTemp()
-{
-	if(_tempLastReportedAt + (params.getFixIntervalSeconds()) * 1000 <= millis()){		//we try to report temp at roughly the same rate as the timer interval.
-		_tempLastReportedAt = millis();
-		
-		if(params.getUseAccelero() == false)
-			setLsm303Active(true);
-
-		uint8_t tempL = lsm303.readReg(LSM303::TEMP_OUT_L);
-		uint8_t tempH = lsm303.readReg(LSM303::TEMP_OUT_H);
-		int16_t temp = (int16_t)(((uint16_t)tempH << 8) | tempL);
-
-		if(params.getUseAccelero() == false)
-			setLsm303Active(false);
-		
-	}
-}*/
-
 void loop()
 {
     tryReportBattery(Modem, Device); 
@@ -476,7 +514,6 @@ void loop()
         else
             startGPSFix();
     }
-    #ifndef DEBUG
-    sleep();
-    #endif
+	if(!params.getIsDebugMode())
+		sleep();
 }

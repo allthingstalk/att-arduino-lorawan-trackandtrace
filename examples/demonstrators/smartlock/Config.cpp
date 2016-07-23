@@ -36,11 +36,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define DEFAULT_HEADER 0xBEEF
 
 
-#define DEBUG
+//#define DEBUG
 
 #ifndef DEBUG
-	#define MOVING_WAKEUP_EVERY_SEC 59              //seconds part of the clock that wakes up the device while moving, to verity if the device is still moving.
-	#define WAKEUP_EVERY_MIN 4                      //minutes part of the clock that wakes up the device while moving, to verity if the device is still moving.
+	#define MOVING_WAKEUP_EVERY_SEC 00              //seconds part of the clock that wakes up the device while moving, to verity if the device is still moving.
+	#define WAKEUP_EVERY_MIN 5                      //minutes part of the clock that wakes up the device while moving, to verity if the device is still moving.
 #else
 	#define MOVING_WAKEUP_EVERY_SEC 30              
 	#define WAKEUP_EVERY_MIN 0                      
@@ -93,6 +93,7 @@ void ConfigParams::reset()
     _acceleroSensitivity = ACCELERO_SENSITIVY;
     _isLedEnabled = true; 
 	_useAccelero = true;
+	_isDebugMode = true;
 	
     memset(_devAddrOrEUI, 0x30, sizeof(_devAddrOrEUI) - 1);
     _devAddrOrEUI[sizeof(_devAddrOrEUI) - 1] = '\0';
@@ -152,15 +153,16 @@ void ConfigParams::commit(bool forced)
 static const Command args[] = {
 	{ "Use accelerometer (OFF=0 / ON=1)", "ac=", Command::set_uint8, Command::show_uint8, &params._useAccelero },
 	{ "Accelerometer sensitivity (1-10)", "acs=", Command::set_uint8, Command::show_uint8, &params._acceleroSensitivity },
-	{ "Fix Interval (seconds part)     ", "fis=", Command::set_uint8, Command::show_uint8, &params._fixIntervalSeconds },
-    { "Fix Interval (minutes part)     ", "fim=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
+	//{ "Interval (seconds part)         ", "fis=", Command::set_uint8, Command::show_uint8, &params._fixIntervalSeconds },
+    { "Interval (minutes)              ", "fim=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
     { "GPS Fix Timeout (sec)           ", "gft=", Command::set_uint16, Command::show_uint16, &params._gpsFixTimeout },
 	
     { "DevAddr / DevEUI                ", "dev=", Command::set_string, Command::show_string, params._devAddrOrEUI, sizeof(params._devAddrOrEUI) },
     { "AppSKey / AppEUI                ", "app=", Command::set_string, Command::show_string, params._appSKeyOrEUI, sizeof(params._appSKeyOrEUI) },
     { "NWSKey / AppKey                 ", "key=", Command::set_string, Command::show_string, params._nwSKeyOrAppKey, sizeof(params._nwSKeyOrAppKey) },
 
-    { "Status LED (OFF=0 / ON=1)       ", "led=", Command::set_uint8, Command::show_uint8, &params._isLedEnabled }
+    { "Status LED (OFF=0 / ON=1)       ", "led=", Command::set_uint8, Command::show_uint8, &params._isLedEnabled },
+	{ "Debug mode (OFF=0 / ON=1)       ", "debug=", Command::set_uint8, Command::show_uint8, &params._isDebugMode }
 };
 
 void ConfigParams::showConfig(Stream* stream)
@@ -209,6 +211,11 @@ bool ConfigParams::checkConfig(Stream& stream)
 	
 	if (_isLedEnabled > 1) {
         stream.println("\n\nERROR: \"led\" must be either 0 or 1");
+        fail = true;
+    }
+	
+	if (_isDebugMode > 1) {
+        stream.println("\n\nERROR: \"debug\" must be either 0 or 1");
         fail = true;
     }
 

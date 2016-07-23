@@ -48,6 +48,7 @@ struct ConfigParams
 
 	uint8_t _useAccelero;
     uint8_t _isLedEnabled;
+	uint8_t _isDebugMode;
     
     char _devAddrOrEUI[16 + 1];
     char _appSKeyOrEUI[32 + 1];
@@ -70,6 +71,7 @@ public:
 
     bool getIsLedEnabled() const { return _isLedEnabled; } 
 	bool getUseAccelero() const { return _useAccelero; }
+	bool getIsDebugMode() const { return _isDebugMode; }
     
     const char* getDevAddrOrEUI() const { return _devAddrOrEUI; }
     const char* getAppSKeyOrEUI() const { return _appSKeyOrEUI; }
