@@ -1,6 +1,6 @@
-# LoRaOne product kit
+# LoRaWAN track and trace
 
-This library contains the demonstrators sketches for the LoRaOne multi purpose track-and-trace device.
+This repository contains multiple examples for the sodaq one board, including a track and trace application.
 
 Current version: 1.0
 
