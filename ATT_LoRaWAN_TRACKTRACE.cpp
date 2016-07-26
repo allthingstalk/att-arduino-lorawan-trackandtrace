@@ -1,4 +1,4 @@
-#include "ATT_LoRaOne_common.h"
+#include "ATT_LoRaWAN_TRACKTRACE.h"
 #include <Wire.h>
 
 #define BATTERY_REPORT_SEC 59						//determins how frequently the interrupt clock wakes up to send battery stats.
@@ -14,6 +14,7 @@
 
 #define SENDBATTERYEVERY 86400000					//send battery every 24 hours, used to check time if we missed a hartbeat from the interrupt clock.
 
+//note: for some reason, we can't declare this in .h as extern: it gives conflicts with other parts of thea application
 bool _ledsEnabled = true;
 
 
@@ -81,19 +82,18 @@ void informEndOfCalibration()
 void signalSendStart()
 {
 	BlueLedOn();
-	/*for(int i = 0; i < 5; i++){
+	for(int i = 0; i < 3; i++){
 		delay(200);
 		BlueLedOn();
 		delay(200);
 		BlueLedOff();
-	}*/
+	}
 }
 
 //sends the value to the NSP. If this operation failed, the red led will blink 3 times.
 void signalSendResult(bool value)
 {
 	if(_ledsEnabled){						//when leds are disabled, don't do the entire routine. it just takes up time.
-		BlueLedOff();
 		if(value == false){					//if we failed to send the message, indicate with led.
 			for(int i = 0; i < 5; i++){
 				delay(200);
@@ -103,12 +103,9 @@ void signalSendResult(bool value)
 			}
 		}
 		else{
-			for(int i = 0; i < 5; i++){
-				delay(200);
-				GreenLedOn();
-				delay(200);
-				GreenLedOff();
-			}
+			GreenLedOn();
+			delay(700);
+			GreenLedOff();
 		}
 	}
 }
@@ -264,7 +261,7 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	uint16_t voltage = (uint16_t)((ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage);
     voltage = (voltage - 3000) / 10;
 
-    SerialUSB.print("level 2: "); SerialUSB.println(voltage > 255 ? 255 : (uint8_t)voltage);
+    //SerialUSB.print("level 2: "); SerialUSB.println(voltage > 255 ? 255 : (uint8_t)voltage);
 	
 	
 	

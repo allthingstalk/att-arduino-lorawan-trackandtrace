@@ -13,13 +13,13 @@
  * 
  **/
 
-#include <ATT_LoRa_IOT.h>
+#include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
 #include <Wire.h>
-#include <ATT_LoRaOne_LSM303.h>
-#include <ATT_LoRaOne_RTCZero.h>
-#include <ATT_LoRaOne_UBlox_GPS.h>
-#include <ATT_LoRaOne_common.h>
+#include <ATT_LoRaWAN_LSM303.h>
+#include <ATT_LoRaWAN_RTCZero.h>
+#include <ATT_LoRaWAN_UBlox_GPS.h>
+#include <ATT_LoRaWAN_TRACKTRACE.h>
 #include "Config.h"
 #include "BootMenu.h"
 
@@ -136,19 +136,21 @@ void setWakeUpClock()
 		if(_foundGPSFix){										//if we already found a fix before, we can get a new one really fast, so we use a short delay. If we havent, it will take a longer time.
 			rtc.setAlarmSeconds(GPS_WAKEUP_EVERY_SEC);                      // Schedule the wakeup interrupt
 			rtc.setAlarmMinutes(GPS_WAKEUP_EVERY_MIN);
+			SerialUSB.print("sleep for "); SerialUSB.print(GPS_WAKEUP_EVERY_SEC);  SerialUSB.println(" seconds");
 		}
 		else{
-			rtc.setAlarmSeconds(GPS_WAKEUP_EVERY_SEC * 5);
+			rtc.setAlarmSeconds(GPS_WAKEUP_EVERY_SEC * 6);
 			rtc.setAlarmMinutes(GPS_WAKEUP_EVERY_MIN);
+			SerialUSB.print("sleep for "); SerialUSB.print(GPS_WAKEUP_EVERY_SEC * 6);  SerialUSB.println(" seconds");
 		}
     }else{
         rtc.setAlarmSeconds(params.getFixIntervalSeconds());                      // Schedule the wakeup interrupt
         rtc.setAlarmMinutes(params.getFixIntervalMinutes());
+		SerialUSB.print("sleep for "); SerialUSB.print(params.getFixIntervalMinutes());  SerialUSB.println(" minutes");
     }
     rtc.enableAlarm(RTCZero::MATCH_MMSS);                       // MATCH_SS
     rtc.attachInterrupt(onSleepDone);                           // Attach handler so that we can set the battery flag when the time has passed.
     rtc.setEpoch(0);                                            // This sets it to 2000-01-01
-    SerialUSB.println("sleep for some time");
 }
 
 /*
@@ -213,7 +215,7 @@ void startGPSFix()
 		if(!params.getUseAccelero())								//when using the timer to send gps fix, we can still send a second message  (without congesting the lora network)
 			reportTemp();
         unsigned long start = millis();
-        uint32_t timeout = params.getGpsFixTimeout() * 1000;
+        uint32_t timeout = params.getGpsFixTimeout() * (_foundGPSFix ? 5000 : 30000);
         SerialUSB.println(String("spinning up gps ..., timeout=") + timeout + String("ms"));
         sodaq_gps.startScan(start, timeout);
         _gpsScanning = true;
@@ -396,7 +398,7 @@ void connect()
 void setup()
 {   
     sodaq_gps.init();                                       //do this as early as possible, so we have a workign gps.
-    sodaq_gps.setDiag(SerialUSB);
+    //sodaq_gps.setDiag(SerialUSB);
 	params.read();                                          //get any previously saved configs, if there are any (otherwise use default).
     initPower();
     initLeds(params.getIsLedEnabled());
@@ -404,7 +406,7 @@ void setup()
     BlueLedOn();                                            //indicate start of device
     handleSerialPort();
 	delay(1000);
-    SerialUSB.println("start of tracker demo v1.0");
+    SerialUSB.println("start of track and trace demo v1.0");
 	rtc.begin();
     connect();
 

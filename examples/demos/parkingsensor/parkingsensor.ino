@@ -19,11 +19,11 @@
 #define MAGNETO_INTERRUPT_SENSITIVITY 70    // (max 15 bits) the higher the number, the less sensitive the sensor is (the bigger the change in magnetic field has to be)
 #define WAKEUP_EVERY_SEC 30                 //how often the timer wakes up to check if the car has left. 
  
-#include <ATT_LoRa_IOT.h>
+#include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
 #include <Wire.h>
-#include <ATT_LoRaOne_RTCZero.h>
-#include <ATT_LoRaOne_common.h>
+#include <ATT_LoRaWAN_RTCZero.h>
+#include <ATT_LoRaWAN_common.h>
 
 #include "keys.h"
 

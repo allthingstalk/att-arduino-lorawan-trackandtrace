@@ -20,12 +20,12 @@
 #define HEADING_TOLERANCE 3                     //nr of degrees tolerance that the algoritme uses to determine if the gate is closed or not.
 
  
-#include <ATT_LoRa_IOT.h>
+#include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
 #include <Wire.h>
-#include <ATT_LoRaOne_LSM303.h>
-#include <ATT_LoRaOne_RTCZero.h>
-#include <ATT_LoRaOne_common.h>
+#include <ATT_LoRaWAN_LSM303.h>
+#include <ATT_LoRaWAN_RTCZero.h>
+#include <ATT_LoRaWAN_common.h>
 
 #include "keys.h"
 

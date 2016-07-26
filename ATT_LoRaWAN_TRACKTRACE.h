@@ -2,9 +2,9 @@
 #ifndef _att_common_h
 #define _att_common_h
 
-#include <ATT_LoRa_IOT.h>
+#include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
-#include "ATT_LoRaOne_rtcZero.h"
+#include "ATT_LoRaWAN_rtcZero.h"
 
 #if defined(ARDUINO) && ARDUINO >= 100
   #include "arduino.h"

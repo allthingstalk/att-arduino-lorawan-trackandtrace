@@ -85,15 +85,14 @@ private:
     Stream *    _diagStream;
 
     uint8_t     _addr;
-
+	uint8_t     _numSatellites;
     bool        _seenLatLon;
-    uint8_t     _numSatellites;
+	bool        _seenTime;
     double      _lat;
     double      _lon;
 	double      _alt;
 	double      _speed;
 
-    bool        _seenTime;
     uint8_t     _yy;
     uint8_t     _MM;
     uint8_t     _dd;

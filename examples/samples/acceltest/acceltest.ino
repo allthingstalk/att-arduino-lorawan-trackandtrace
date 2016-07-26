@@ -1,7 +1,7 @@
 // Accel Test
 
 #include <Wire.h>
-#include "ATT_LoRaOne_LSM303.h"
+#include "ATT_LoRaWAN_LSM303.h"
 
 
 #define ACCEL_ADR 0b0011110

@@ -24,7 +24,10 @@
 //          FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 //          OTHER DEALINGS IN THE SOFTWARE.
 
-#include "LSM303.h"
+
+// for more info on sensor: http://www.st.com/content/ccc/resource/technical/document/datasheet/1c/9e/71/05/4e/b7/4d/d1/DM00057547.pdf/files/DM00057547.pdf/jcr:content/translations/en.DM00057547.pdf
+
+#include "ATT_LoRaWAN_LSM303.h"
 #include <Wire.h>
 #include <math.h>
 

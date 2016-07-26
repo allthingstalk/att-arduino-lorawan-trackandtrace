@@ -49,7 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 
 #define ACCELERO_SENSITIVY 4                    //sensitivity of the accelerometer when in deep sleep mode (waiting for first movment), the closer to 0, the more sensitive. Each point represent 16 milli g force.
-#define GPS_FIX_TIMEOUT 360                    //nr of seconds after which the GPS will time out and no GPS position will be sent.
+#define GPS_FIX_TIMEOUT 11                    //nr of seconds after which the GPS will time out and no GPS position will be sent.
 
 ConfigParams params;
 
@@ -155,7 +155,7 @@ static const Command args[] = {
 	{ "Accelerometer sensitivity (1-10)", "acs=", Command::set_uint8, Command::show_uint8, &params._acceleroSensitivity },
 	//{ "Interval (seconds part)         ", "fis=", Command::set_uint8, Command::show_uint8, &params._fixIntervalSeconds },
     { "Interval (minutes)              ", "fim=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
-    { "GPS Fix Timeout (sec)           ", "gft=", Command::set_uint16, Command::show_uint16, &params._gpsFixTimeout },
+    { "GPS nr of retries (10-30)       ", "gps=", Command::set_uint16, Command::show_uint16, &params._gpsFixTimeout },
 	
     { "DevAddr / DevEUI                ", "dev=", Command::set_string, Command::show_string, params._devAddrOrEUI, sizeof(params._devAddrOrEUI) },
     { "AppSKey / AppEUI                ", "app=", Command::set_string, Command::show_string, params._appSKeyOrEUI, sizeof(params._appSKeyOrEUI) },
@@ -228,10 +228,15 @@ bool ConfigParams::checkConfig(Stream& stream)
         stream.println("\n\nERROR: \"fis. (seconds part)\" must not be more than 59");
         fail = true;
     }
+	
+	if (_gpsFixTimeout > 30 || _gpsFixTimeout < 10) {
+        stream.println("\n\nERROR: \"gps. (10-30)\" must be between 10 and 30");
+        fail = true;
+    }
 
 
-    if (_acceleroSensitivity > 10) {
-        stream.println("\n\nERROR: \"Alt. (1-10)\" must not be more than 10");
+    if (_acceleroSensitivity > 10 || _acceleroSensitivity < 1) {
+        stream.println("\n\nERROR: \"Alt. (1-10)\" must not be more than 10 or less then 1");
         fail = true;
     }
 
