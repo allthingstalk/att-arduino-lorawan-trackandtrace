@@ -216,7 +216,7 @@ void startGPSFix()
 			reportTemp();
         unsigned long start = millis();
         uint32_t timeout = params.getGpsFixTimeout() * (_foundGPSFix ? 5000 : 30000);
-        SerialUSB.println(String("spinning up gps ..., timeout=") + timeout + String("ms"));
+        SerialUSB.println(String("spinning up gps ..., timeout in ") + (timeout / 1000) + String("s"));
         sodaq_gps.startScan(start, timeout);
         _gpsScanning = true;
         setWakeUpClock();

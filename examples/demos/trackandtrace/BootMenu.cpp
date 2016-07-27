@@ -146,6 +146,8 @@ static void showCommandPrompt(Stream* stream)
 	stream->print("[2J");		// clear screen command
 	stream->write(27);
 	stream->print("[H");     	// cursor to home command
+	stream->println("LoRaWAN track and trace menu");
+	stream->println("============================");
     showMyCommands(stream);
     ConfigParams::showConfig(stream);
     stream->print("Enter command: ");

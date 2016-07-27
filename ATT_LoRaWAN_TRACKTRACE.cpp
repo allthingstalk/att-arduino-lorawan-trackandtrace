@@ -258,13 +258,6 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	SerialUSB.print("level: ");  SerialUSB.println(battery);
 	
 	
-	uint16_t voltage = (uint16_t)((ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage);
-    voltage = (voltage - 3000) / 10;
-
-    //SerialUSB.print("level 2: "); SerialUSB.println(voltage > 255 ? 255 : (uint8_t)voltage);
-	
-	
-	
 	signalSendStart();
 	bool sendResult = device.Send((short)battery, BATTERY_LEVEL);
 	signalSendResult(sendResult);

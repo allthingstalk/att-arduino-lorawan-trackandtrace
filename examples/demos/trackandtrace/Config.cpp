@@ -146,6 +146,7 @@ void ConfigParams::commit(bool forced)
     _crc16 = crc16ccitt((uint8_t*)this, sizeof(ConfigParams) - sizeof(_crc16));
 
     flash.write(*this);
+	delay(500);
 
     needsCommit = false;
 }
@@ -154,15 +155,15 @@ static const Command args[] = {
 	{ "Use accelerometer (OFF=0 / ON=1)", "ac=", Command::set_uint8, Command::show_uint8, &params._useAccelero },
 	{ "Accelerometer sensitivity (1-10)", "acs=", Command::set_uint8, Command::show_uint8, &params._acceleroSensitivity },
 	//{ "Interval (seconds part)         ", "fis=", Command::set_uint8, Command::show_uint8, &params._fixIntervalSeconds },
-    { "Interval (minutes)              ", "fim=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
+    { "Interval (minutes)              ", "int=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
     { "GPS nr of retries (10-30)       ", "gps=", Command::set_uint16, Command::show_uint16, &params._gpsFixTimeout },
 	
-    { "DevAddr / DevEUI                ", "dev=", Command::set_string, Command::show_string, params._devAddrOrEUI, sizeof(params._devAddrOrEUI) },
-    { "AppSKey / AppEUI                ", "app=", Command::set_string, Command::show_string, params._appSKeyOrEUI, sizeof(params._appSKeyOrEUI) },
-    { "NWSKey / AppKey                 ", "key=", Command::set_string, Command::show_string, params._nwSKeyOrAppKey, sizeof(params._nwSKeyOrAppKey) },
+    { "DevAddr                         ", "dev=", Command::set_string, Command::show_string, params._devAddrOrEUI, sizeof(params._devAddrOrEUI) },
+    { "AppSKey                         ", "app=", Command::set_string, Command::show_string, params._appSKeyOrEUI, sizeof(params._appSKeyOrEUI) },
+    { "NWSKey                          ", "nwk=", Command::set_string, Command::show_string, params._nwSKeyOrAppKey, sizeof(params._nwSKeyOrAppKey) },
 
     { "Status LED (OFF=0 / ON=1)       ", "led=", Command::set_uint8, Command::show_uint8, &params._isLedEnabled },
-	{ "Debug mode (OFF=0 / ON=1)       ", "debug=", Command::set_uint8, Command::show_uint8, &params._isDebugMode }
+	{ "Debug mode (OFF=0 / ON=1)       ", "dbg=", Command::set_uint8, Command::show_uint8, &params._isDebugMode }
 };
 
 void ConfigParams::showConfig(Stream* stream)
@@ -220,7 +221,7 @@ bool ConfigParams::checkConfig(Stream& stream)
     }
 
     if (_fixIntervalMinutes > 59) {
-        stream.println("\n\nERROR: \"fim. (minutes part)\" must not be more than 59");
+        stream.println("\n\nERROR: \"int. (minutes part)\" must not be more than 59");
         fail = true;
     }
 
