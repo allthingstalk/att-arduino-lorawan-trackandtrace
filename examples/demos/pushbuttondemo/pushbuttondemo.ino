@@ -1,0 +1,70 @@
+/****
+ *  AllThingsTalk Developer Cloud IoT experiment for LoRa
+ *  version 1.0 dd 09/11/2015
+ *  Original author: Jan Bogaerts 2015
+ *
+ *
+ *  This example sketch is based on the Proxilmus IoT network in Belgium
+ *  The sketch and libs included support the
+ *  - MicroChip RN2483 LoRa module
+ *  - Embit LoRa modem EMB-LR1272
+ *  
+ *  For more information, please check our documentation
+ *  -> http://docs.smartliving.io/kits/lora
+ */
+#include <Wire.h>
+#include <ATT_LoRa_IOT.h>
+#include <MicrochipLoRaModem.h>
+#include "keys.h"
+
+#define SERIAL_BAUD 57600
+
+MicrochipLoRaModem Modem(&Serial1, &SerialUSB);
+ATTDevice Device(&Modem, &SerialUSB);
+
+bool sensorVal = false;
+
+void setup() 
+{
+  pinMode(ENABLE_PIN_IO, OUTPUT);
+  digitalWrite(ENABLE_PIN_IO, HIGH);
+  pinMode(BUTTON, INPUT_PULLUP);               			// initialize the digital pin as an input
+  pinMode(LED_GREEN, OUTPUT);
+  SerialUSB.begin(SERIAL_BAUD);                   		// set baud rate of the default serial debug connection
+  while(!SerialUSB) {}
+  Serial1.begin(Modem.getDefaultBaudRate());   			// set baud rate of the serial connection between Mbili and LoRa modem
+  while(!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY))
+	Serial.println("retrying...");						// initialize connection with the AllThingsTalk Developer Cloud
+  SerialUSB.println("Ready to send data");
+  digitalWrite(LED_GREEN, HIGH);
+  SendValue(0);                        					// send initial state
+
+}
+
+
+bool SendValue(bool val)
+{
+  SerialUSB.print("Data: ");SerialUSB.println(val);
+  bool res = Device.Send(val, BINARY_SENSOR, true);
+  if(res == false)
+    SerialUSB.println("Ooops, error sendng");
+  return res;
+}
+
+void loop() 
+{
+  bool sensorRead = digitalRead(BUTTON);      			// read status Digital Sensor
+  if (sensorRead == 0 ) {                               // verify if value has changed
+     if(SendValue(!sensorVal) == true) {
+         digitalWrite(LED_GREEN, sensorVal);
+         sensorVal = !sensorVal;
+         }
+   delay(1000);
+   }
+}
+
+void serialEvent1()
+{
+  Device.Process();                           			//for future extensions -> actuators
+}
+

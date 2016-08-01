@@ -8,7 +8,7 @@
 
 //These constants are used for reading the battery voltage
 #define ADC_AREF 3.3
-#define BATVOLTPIN A5 
+#define BATVOLT_PIN BAT_VOLT
 #define BATVOLT_R1 4.7
 #define BATVOLT_R2 10
 
@@ -248,13 +248,12 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	unsigned long curTime = millis();
 	modem.WakeUp();
 	SerialUSB.println("reporting battery status");
-	uint16_t batteryVoltage = analogRead(BATVOLTPIN);
+	uint16_t batteryVoltage = analogRead(BATVOLT_PIN);
 	uint16_t battery = (ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage;
-	battery = (battery - 3000) / 10;
-	if (battery > 255)
+	
+	battery = (uint16_t)((100.0/ 1200.) * (float) (3000 - battery));
+	if (battery > 100)
 		battery = 100;
-	else
-		battery = (100.0 / 255.0) * (uint8_t)battery;
 	SerialUSB.print("level: ");  SerialUSB.println(battery);
 	
 	
