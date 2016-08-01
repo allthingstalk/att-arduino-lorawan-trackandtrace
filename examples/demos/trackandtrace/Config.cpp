@@ -160,7 +160,7 @@ static const Command args[] = {
 	
     { "DevAddr                         ", "dev=", Command::set_string, Command::show_string, params._devAddrOrEUI, sizeof(params._devAddrOrEUI) },
     { "AppSKey                         ", "app=", Command::set_string, Command::show_string, params._appSKeyOrEUI, sizeof(params._appSKeyOrEUI) },
-    { "NWSKey                          ", "nwk=", Command::set_string, Command::show_string, params._nwSKeyOrAppKey, sizeof(params._nwSKeyOrAppKey) },
+    { "NWKSKey                         ", "nwk=", Command::set_string, Command::show_string, params._nwSKeyOrAppKey, sizeof(params._nwSKeyOrAppKey) },
 
     { "Status LED (OFF=0 / ON=1)       ", "led=", Command::set_uint8, Command::show_uint8, &params._isLedEnabled },
 	{ "Debug mode (OFF=0 / ON=1)       ", "dbg=", Command::set_uint8, Command::show_uint8, &params._isDebugMode }
