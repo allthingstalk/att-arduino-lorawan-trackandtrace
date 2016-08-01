@@ -274,7 +274,7 @@ bool trySendGPSFix()
     }
     else if(sodaq_gps.scanTimedOut()){
         stopGPSFix();
-        SerialUSB.println("GPS module stopped: failed to find fix. new GPS fix will be attempted upon next change in movement");
+        SerialUSB.println("GPS module stopped: failed to find fix. new GPS fix will be attempted upon next wake-up");
 		return true;
     }
     else
