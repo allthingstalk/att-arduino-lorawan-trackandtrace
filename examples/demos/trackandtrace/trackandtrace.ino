@@ -378,26 +378,34 @@ bool convertAndCheckHexArray(uint8_t* result, const char* hex, size_t resultSize
 
 void connect()
 {
-	uint8_t devAddr[4];
-	uint8_t appSKey[16];
-	uint8_t nwkSKey[16];
+	uint8_t devAddr[5];
+	uint8_t appSKey[17];
+	uint8_t nwkSKey[17];
 
-	bool allParametersValid = convertAndCheckHexArray((uint8_t*)devAddr, params.getDevAddrOrEUI(), sizeof(devAddr))
-		&& convertAndCheckHexArray((uint8_t*)appSKey, params.getAppSKeyOrEUI(), sizeof(appSKey))
-		&& convertAndCheckHexArray((uint8_t*)nwkSKey, params.getNwSKeyOrAppKey(), sizeof(nwkSKey));
+	SerialUSB.println(params.getUseAccelero());
+	bool allParametersValid = convertAndCheckHexArray((uint8_t*)devAddr, params.getDevAddrOrEUI(), sizeof(devAddr) -1)
+		&& convertAndCheckHexArray((uint8_t*)appSKey, params.getAppSKeyOrEUI(), sizeof(appSKey) -1)
+		&& convertAndCheckHexArray((uint8_t*)nwkSKey, params.getNwSKeyOrAppKey(), sizeof(nwkSKey)-1);
 		
+	SerialUSB.println(params.getUseAccelero());
 	if(!allParametersValid){
 		SerialUSB.println("Invalid parameters for the lora connection, can't start up lora modem.");
 		return;
 	}
+	SerialUSB.println(params.getUseAccelero());
 	//Device.SetMinTimeBetweenSend(150000);					//we are sending out many messages after each other, make certain that they don't get blocked by base station.
 	// Note: It is more power efficient to leave Serial1 running
     Serial1.begin(Modem.getDefaultBaudRate());              // init the baud rate of the serial connection so that it's ok for the modem
+	SerialUSB.println(params.getUseAccelero());
     Modem.Sleep();                                          //make certain taht the modem is synced and awake.
+	SerialUSB.println(params.getUseAccelero());
     delay(50);
+	SerialUSB.println(params.getUseAccelero());
     Modem.WakeUp();
+	SerialUSB.println(params.getUseAccelero());
     while (!Device.Connect(devAddr, appSKey, nwkSKey));
     SerialUSB.println("Ready to send data");
+	SerialUSB.println(params.getUseAccelero());
 }
  
 void setup()
@@ -410,14 +418,22 @@ void setup()
     setPower(HIGH);                                         //turn board on
     BlueLedOn();                                            //indicate start of device
     handleSerialPort();
-	delay(1000);
     SerialUSB.println("start of track and trace demo v1.0");
+	delay(500);
 	rtc.begin();
     connect();
 
     Wire.begin();
     BlueLedOff();                                           //indicate end of init  
 	//initLeds(params.getIsLedEnabled());
+	while(params.getUseAccelero() == false){
+		SerialUSB.println(params.getUseAccelero());
+		delay(1000);
+	}
+	if(params.getUseAccelero())
+		SerialUSB.println("with accelero");
+	else
+		SerialUSB.println("no accelero");
     if(params.getUseAccelero()){
         compass.init(LSM303::device_D);
         compass.enableDefault();
@@ -492,6 +508,7 @@ void loop()
 {
     tryReportBattery(Modem, Device); 
     if(params.getUseAccelero()){
+		SerialUSB.println("wake up from movement");
         if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
             wakeFromTimer = false;
             if(_wasMoving)

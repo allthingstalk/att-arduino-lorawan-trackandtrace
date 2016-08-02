@@ -57,21 +57,6 @@
                 }
             },
 			
-			{
-                "name": "5",
-                "title": "temperature",
-                "description": "current board temperature",
-                "is": "sensor",
-                "profile": {
-                    "type": "number",
-                    "unit": "°",
-					"minimum": -40,
-                    "maximum": 85
-                },
-                "control": {
-                    "name": "circle-progress"
-                }
-            },
 			
 			{
                 "name": "15",

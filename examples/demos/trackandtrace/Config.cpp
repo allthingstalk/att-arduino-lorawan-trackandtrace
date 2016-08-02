@@ -154,7 +154,6 @@ void ConfigParams::commit(bool forced)
 static const Command args[] = {
 	{ "Use accelerometer (OFF=0 / ON=1)", "ac=", Command::set_uint8, Command::show_uint8, &params._useAccelero },
 	{ "Accelerometer sensitivity (1-10)", "acs=", Command::set_uint8, Command::show_uint8, &params._acceleroSensitivity },
-	//{ "Interval (seconds part)         ", "fis=", Command::set_uint8, Command::show_uint8, &params._fixIntervalSeconds },
     { "Interval (minutes)              ", "int=", Command::set_uint8, Command::show_uint8, &params._fixIntervalMinutes },
     { "GPS nr of retries (10-30)       ", "gps=", Command::set_uint16, Command::show_uint16, &params._gpsFixTimeout },
 	
