@@ -325,7 +325,7 @@ void handleSerialPort()
         unsigned long start = millis();
         pinMode(BUTTON, INPUT_PULLUP);
         int sensorVal = digitalRead(BUTTON);
-        while(sensorVal == HIGH && start + 5000 > millis())
+        while(sensorVal == HIGH && start + 5000 > millis())		//should be save from overflow: only happens at the start.
             sensorVal = digitalRead(BUTTON);
         if(sensorVal == LOW){
 			while(!SerialUSB){}                                 //wait until the serial port is connected, or time out if there is none.
@@ -387,33 +387,26 @@ void connect()
 		&& convertAndCheckHexArray((uint8_t*)appSKey, params.getAppSKeyOrEUI(), sizeof(appSKey) -1)
 		&& convertAndCheckHexArray((uint8_t*)nwkSKey, params.getNwSKeyOrAppKey(), sizeof(nwkSKey)-1);
 		
-	SerialUSB.println(params.getUseAccelero());
 	if(!allParametersValid){
 		SerialUSB.println("Invalid parameters for the lora connection, can't start up lora modem.");
 		return;
 	}
-	SerialUSB.println(params.getUseAccelero());
 	//Device.SetMinTimeBetweenSend(150000);					//we are sending out many messages after each other, make certain that they don't get blocked by base station.
 	// Note: It is more power efficient to leave Serial1 running
     Serial1.begin(Modem.getDefaultBaudRate());              // init the baud rate of the serial connection so that it's ok for the modem
-	SerialUSB.println(params.getUseAccelero());
     Modem.Sleep();                                          //make certain taht the modem is synced and awake.
-	SerialUSB.println(params.getUseAccelero());
     delay(50);
-	SerialUSB.println(params.getUseAccelero());
     Modem.WakeUp();
-	SerialUSB.println(params.getUseAccelero());
     while (!Device.Connect(devAddr, appSKey, nwkSKey));
     SerialUSB.println("Ready to send data");
-	SerialUSB.println(params.getUseAccelero());
 }
  
 void setup()
 {   
+	initPower();
     sodaq_gps.init();                                       //do this as early as possible, so we have a workign gps.
     //sodaq_gps.setDiag(SerialUSB);
 	params.read();                                          //get any previously saved configs, if there are any (otherwise use default).
-    initPower();
     initLeds(params.getIsLedEnabled());
     setPower(HIGH);                                         //turn board on
     BlueLedOn();                                            //indicate start of device
@@ -425,15 +418,6 @@ void setup()
 
     Wire.begin();
     BlueLedOff();                                           //indicate end of init  
-	//initLeds(params.getIsLedEnabled());
-	while(params.getUseAccelero() == false){
-		SerialUSB.println(params.getUseAccelero());
-		delay(1000);
-	}
-	if(params.getUseAccelero())
-		SerialUSB.println("with accelero");
-	else
-		SerialUSB.println("no accelero");
     if(params.getUseAccelero()){
         compass.init(LSM303::device_D);
         compass.enableDefault();
