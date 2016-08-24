@@ -31,10 +31,9 @@ void setup()
   pinMode(BUTTON, INPUT_PULLUP);               			// initialize the digital pin as an input
   pinMode(LED_GREEN, OUTPUT);
   SerialUSB.begin(SERIAL_BAUD);                   		// set baud rate of the default serial debug connection
-  while(!SerialUSB) {}
   Serial1.begin(Modem.getDefaultBaudRate());   			// set baud rate of the serial connection between Mbili and LoRa modem
   while(!Device.Connect(DEV_ADDR, APPSKEY, NWKSKEY))
-	Serial.println("retrying...");						// initialize connection with the AllThingsTalk Developer Cloud
+	Serial.println("Retrying...");						// initialize connection with the AllThingsTalk Developer Cloud
   SerialUSB.println("Ready to send data");
   digitalWrite(LED_GREEN, HIGH);
   SendValue(0);                        					// send initial state
@@ -47,7 +46,7 @@ bool SendValue(bool val)
   SerialUSB.print("Data: ");SerialUSB.println(val);
   bool res = Device.Send(val, BINARY_SENSOR, true);
   if(res == false)
-    SerialUSB.println("Ooops, error sendng");
+    SerialUSB.println("Ooops, there's an error sending data. Try again in couple of seconds");
   return res;
 }
 
