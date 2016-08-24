@@ -13,7 +13,7 @@
  *  -> http://docs.smartliving.io/kits/lora
  */
 #include <Wire.h>
-#include <ATT_LoRa_IOT.h>
+#include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
 #include "keys.h"
 
