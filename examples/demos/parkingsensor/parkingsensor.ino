@@ -23,7 +23,7 @@
 #include <MicrochipLoRaModem.h>
 #include <Wire.h>
 #include <ATT_LoRaWAN_RTCZero.h>
-#include <ATT_LoRaWAN_common.h>
+#include <ATT_LoRaWAN_TRACKTRACE.h>
 
 #include "keys.h"
 
@@ -145,9 +145,10 @@ void setup()
     
     prepareMagneto(calibrateEmptyParking());
     signalSendResult(Device.Send(true, BINARY_SENSOR)); // send state to cloud + inform user if the send failed.
-	delay(15000); 										//make certain that we don't over-user the lora network.
+	//delay(15000); 										//make certain that we don't over-user the lora network.
     reportBatteryStatus(Modem, Device);                 //send the current battery status at startup to report init state.
-	Modem.Sleep();                                      
+	Modem.Sleep();       
+	rtc.begin();	
     startReportingBattery(rtc);
 }
 
@@ -160,7 +161,8 @@ void onSleepDone()
 void setWakeUpClock()
 {
     rtc.setAlarmSeconds(WAKEUP_EVERY_SEC);                      // Schedule the wakeup interrupt
-    rtc.enableAlarm(RTCZero::MATCH_SS);
+	rtc.setAlarmMinutes(0);
+    rtc.enableAlarm(RTCZero::MATCH_MMSS);
     rtc.attachInterrupt(onSleepDone);                           // Attach handler so that we can set the battery flag when the time has passed.
     rtc.setEpoch(0);                                            // This sets it to 2000-01-01
     SerialUSB.println("sleep for 30 sec");
@@ -204,8 +206,8 @@ void updateParkingSpace(bool value)
 
 void loop()
 {
-    tryReportBattery(Modem, Device);
     if (wakeFromTimer == true) {                    //we got woken up by the timer, so check if car left.
+		SerialUSB.println("check timer");
         wakeFromTimer = false;
         if(checkEmptyParkingSpace()){
             SerialUSB.println("parking space became free");
@@ -225,10 +227,10 @@ void loop()
     }
     //have to read reg 0x13 on every run, otherwise the interrupt wont trigger.
     int16_t x_val, y_val, z_val;
-    //readMagneto(x_val, y_val, z_val);
+    readMagneto(x_val, y_val, z_val);
     //SerialUSB.println(String("Magnetometer Readings: ") + x_val + ", " + y_val + ", " + z_val);
     readReg(0x13);
-
+	tryReportBattery(Modem, Device);
     #ifndef DEBUG
     SerialUSB.println("going to sleep");
     sleep();
