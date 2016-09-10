@@ -492,7 +492,6 @@ void loop()
 {
     tryReportBattery(Modem, Device); 
     if(params.getUseAccelero()){
-		SerialUSB.println("wake up from movement");
         if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
             wakeFromTimer = false;
             if(_wasMoving)
