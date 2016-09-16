@@ -263,8 +263,8 @@ bool trySendGPSFix()
         Device.Queue((float)10.);
         signalSendStart();
         signalSendResult(Device.Send(GPS));
-		SerialUSB.println(String(" spd = ") + String(sodaq_gps.getSpeed(), 7));  
 		if(!params.getUseAccelero()){								//when user the timer to send gps fix, we can still send a second message  (without congesting the lora network)
+			SerialUSB.println(String(" spd = ") + String(sodaq_gps.getSpeed(), 7));  
 			signalSendStart();
 			signalSendResult(Device.Send((float)sodaq_gps.getSpeed(), NUMBER_SENSOR));
 		}
