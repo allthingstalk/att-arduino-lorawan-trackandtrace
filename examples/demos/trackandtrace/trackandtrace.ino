@@ -215,8 +215,8 @@ void reportTemp()
 //starts up the gps unit and sets a flag so that the main loop knows we need to scan the gps (async scanning).
 void startGPSFix()
 {
-    if(_gpsScanning == false){                                  //only try to start it if the gps is already running, otherwise, we might reset the thing and never get a fix.
-		//if(!params.getUseAccelero())								//when using the timer to send gps fix, we can still send a second message  (without congesting the lora network)
+    if(_gpsScanning == false){                        //only try to start it if the gps is not yet running, otherwise, we might reset the thing and never get a fix.
+		//if(!params.getUseAccelero())        //when using the timer to send gps fix, we can still send a second message  (without congesting the lora network)
 		//	reportTemp();
         unsigned long start = millis();
         uint32_t timeout = params.getGpsFixTimeout() * (_foundGPSFix ? 5000 : 30000);
