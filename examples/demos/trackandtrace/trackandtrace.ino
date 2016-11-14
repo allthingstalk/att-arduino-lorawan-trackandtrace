@@ -4,12 +4,25 @@
  *  AllThingsTalk Developer Cloud IoT demonstrator for SodaqOne
  *  Version 1.0 dd 12/6/2016
  *  Original author: Jan Bogaerts 2016
+ 
+   Copyright 2016 AllThingsTalk
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ 
  *
  *  This sketch is part of the AllThingsTalk LoRaWAN product development kit
  *  -> http://www.allthingstalk.com/lora-rapid-development-kit
  *
  *  For more information, please check our documentation
- *  -> http://docs.smartliving.io/kits/lora
+ *  -> http://allthingstalk.com/docs/tutorials/lora/setup
  * 
  **/
 
