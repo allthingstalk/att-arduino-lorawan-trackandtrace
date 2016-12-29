@@ -265,7 +265,7 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	uint16_t batteryVoltage = analogRead(BATVOLT_PIN);
 	uint16_t battery = (ADC_AREF / 1.023) * (BATVOLT_R1 + BATVOLT_R2) / BATVOLT_R2 * (float)batteryVoltage;
 	
-	battery = (uint16_t)((100.0/ 1200.) * (float) (3000 - battery));
+	battery = (uint16_t)((100.0/ 1200.) * (float) (battery-3000));
 	if (battery > 100)
 		battery = 100;
 	SerialUSB.print("level: ");  SerialUSB.println(battery);
