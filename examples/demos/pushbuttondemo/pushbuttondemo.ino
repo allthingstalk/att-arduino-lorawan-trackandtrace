@@ -27,12 +27,14 @@
 #include <Wire.h>
 #include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
+#include <Container.h>
 #include "keys.h"
 
 #define SERIAL_BAUD 57600
 
 MicrochipLoRaModem Modem(&Serial1, &SerialUSB);
 ATTDevice Device(&Modem, &SerialUSB);
+Container payload(Device);
 
 bool sensorVal = false;
 
@@ -56,7 +58,7 @@ void setup()
 bool SendValue(bool val)
 {
   SerialUSB.print("Data: ");SerialUSB.println(val);
-  bool res = Device.Send(val, BINARY_SENSOR, true);
+  bool res = payload.Send(val, BINARY_SENSOR, true);
   if(res == false)
     SerialUSB.println("Ooops, there's an error sending data. Try again in couple of seconds");
   return res;
@@ -74,8 +76,4 @@ void loop()
    }
 }
 
-void serialEvent1()
-{
-  Device.Process();                           			//for future extensions -> actuators
-}
 

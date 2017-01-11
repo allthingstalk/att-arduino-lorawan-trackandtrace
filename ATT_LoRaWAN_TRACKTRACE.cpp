@@ -248,16 +248,16 @@ void startReportingBattery(RTCZero &rtc)
 	SerialUSB.println("started reporting battery status");
 }
 
-void tryReportBattery(MicrochipLoRaModem &modem, ATTDevice &device)
+void tryReportBattery(MicrochipLoRaModem &modem, Container &payload)
 {
 	if (_reportBattery || _batteryLastReportedAt + SENDBATTERYEVERY <= millis())	//check if the battery status needs to be reported (flag set by the interrupt).
 	{
 		_reportBattery = false;							//switch the flag back off, so that we can report the battery status next run as well
-		reportBatteryStatus(modem, device);
+		reportBatteryStatus(modem, payload);
 	}
 }
 
-void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
+void reportBatteryStatus(MicrochipLoRaModem &modem, Container &payload)
 {
 	unsigned long curTime = millis();
 	modem.WakeUp();
@@ -272,11 +272,13 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device)
 	
 	
 	signalSendStart();
-	bool sendResult = device.Send((short)battery, BATTERY_LEVEL);
+	bool sendResult = payload.Send((short)battery, BATTERY_LEVEL);
 	signalSendResult(sendResult);
 	if(sendResult)
 		_batteryLastReportedAt = curTime;
 		
+	ATTDevice* device = payload.GetDevice();
+	while device->ProcessQueuePopFailed() > 0){}		//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
 	modem.Sleep();
 }
 

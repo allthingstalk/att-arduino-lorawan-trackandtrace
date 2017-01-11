@@ -89,8 +89,8 @@ void enableUSB();
 //set up the timer and start reporting battery level every 24 hours
 void startReportingBattery(RTCZero &rtc);
 //check if it's time to report battery status, and if so, do it.
-void tryReportBattery(MicrochipLoRaModem &modem, ATTDevice &device);
+void tryReportBattery(MicrochipLoRaModem &modem, Container &container);
 //calculates the current battery level and sends it the cloud.
-void reportBatteryStatus(MicrochipLoRaModem &modem, ATTDevice &device);
+void reportBatteryStatus(MicrochipLoRaModem &modem, Container &container);
 
 #endif

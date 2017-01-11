@@ -33,6 +33,8 @@
 #include <ATT_LoRaWAN_RTCZero.h>
 #include <ATT_LoRaWAN_UBlox_GPS.h>
 #include <ATT_LoRaWAN_TRACKTRACE.h>
+#include <Container.h>
+
 #include "Config.h"
 #include "BootMenu.h"
 
@@ -50,6 +52,7 @@
 
 MicrochipLoRaModem Modem(&Serial1, &SerialUSB);
 ATTDevice Device(&Modem, &SerialUSB);
+Container payload(Device);
 
 LSM303 compass;
 bool _wasMoving;                                //keeps track of the moving state. If this is true, the device was moving when last checked.
@@ -220,7 +223,7 @@ void reportTemp()
 	
 	Modem.WakeUp();                                         //the modem is sleeping by default, need to wake it up to send something
 	signalSendStart();
-	signalSendResult(Device.Send((float)temp, TEMPERATURE_SENSOR));
+	signalSendResult(payload.Send((float)temp, TEMPERATURE_SENSOR));
 	Modem.Sleep();
 }
 */
@@ -255,13 +258,15 @@ void stopGPSFix()
 //gets the current location from the gps and sends it to the cloud.
 //withSendDelay: when true, the function will pause (15 sec) before sending the message. The 15 sec is in total, so getting a gps fix is included in that time.
 //returns true if the operation was terminated. Otherwise false
-bool trySendGPSFix()
+//manageModem : when true, the modem will be woken up, wait until send is done, then put back to sleep. When false, modem should be awake before call, will not be waited or put to sleep.
+bool trySendGPSFix(bool manageModem)
 {
 	SerialUSB.println("scanning gps");
     if (sodaq_gps.tryScan(10)) {
         unsigned long duration = millis() - sodaq_gps.getScanStart();
         SerialUSB.println(String(" time to find fix: ") + duration + String("ms"));
-        Modem.WakeUp(); 
+		if(manageModem)
+			Modem.WakeUp(); 
         stopGPSFix();
         SerialUSB.println(String(" datetime = ") + sodaq_gps.getDateTimeString());
         SerialUSB.println(String(" lat = ") + String(sodaq_gps.getLat(), 7));
@@ -270,18 +275,20 @@ bool trySendGPSFix()
 
         SerialUSB.println(String(" num sats = ") + String(sodaq_gps.getNumberOfSatellites()));
 
-        Device.Queue((float)sodaq_gps.getLat());
-        Device.Queue((float)sodaq_gps.getLon());
-        Device.Queue((float)sodaq_gps.getAlt());
-        Device.Queue((float)10.);
         signalSendStart();
-        signalSendResult(Device.Send(GPS));
+        payload.Send((float)sodaq_gps.getLat(), (float)sodaq_gps.getLon(), (float)sodaq_gps.getAlt(), (float)10., GPS);
 		if(!params.getUseAccelero()){								//when user the timer to send gps fix, we can still send a second message  (without congesting the lora network)
 			SerialUSB.println(String(" spd = ") + String(sodaq_gps.getSpeed(), 7));  
-			signalSendStart();
-			signalSendResult(Device.Send((float)sodaq_gps.getSpeed(), NUMBER_SENSOR));
+			payload.Send((float)sodaq_gps.getSpeed(), NUMBER_SENSOR);
 		}
-        Modem.Sleep();
+		if(manageModem){
+			int sendRes = 0;
+			sendRes = Device.ProcessQueuePopFailed();
+			while(sendRes > 0)										//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
+				sendRes = Device.ProcessQueuePopFailed();
+			signalSendResult(sendRes == 0);
+			Modem.Sleep();
+		}
 		_foundGPSFix = true;
 		return true;
     }
@@ -303,12 +310,10 @@ bool sendState(bool value)
     Modem.WakeUp();                                         //the modem is sleeping by default, need to wake it up to send something
     SerialUSB.print("sending state: "); SerialUSB.println(value);
     signalSendStart();
-    bool result = Device.Send(value, PUSH_BUTTON);
-    Modem.Sleep();                                          //when done, put the modem back to sleep to save battery power.
-    signalSendResult(result);
+    bool result = payload.Send(value, PUSH_BUTTON);
     if(result){
         //_resendWasMoving = false;                           //don't need to resend the same value cause we were succesful in sending it out.
-        trySendGPSFix();
+        trySendGPSFix(false);
     }
     else{ 
         stopGPSFix();                                       //something went wrong, can't send a value, so can't send gps, no need to get a fix, save battery.
@@ -317,7 +322,14 @@ bool sendState(bool value)
 //            SerialUSB.println("retrying to send value 'true' on next run"); 
 //        }
     }    
-    return result;
+	
+	int sendRes = 0;
+	sendRes = Device.ProcessQueuePopFailed();
+	while(sendRes > 0)										//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
+		sendRes = Device.ProcessQueuePopFailed();
+	signalSendResult(sendRes == 0);
+	
+    return sendRes == 0;
 }
  
 //stores and sends the 'movement value to the cloud + also sends the gps coordinates.
@@ -404,7 +416,6 @@ void connect()
 		SerialUSB.println("Invalid parameters for the lora connection, can't start up lora modem.");
 		return;
 	}
-	//Device.SetMinTimeBetweenSend(150000);					//we are sending out many messages after each other, make certain that they don't get blocked by base station.
 	// Note: It is more power efficient to leave Serial1 running
     Serial1.begin(Modem.getDefaultBaudRate());              // init the baud rate of the serial connection so that it's ok for the modem
     Modem.Sleep();                                          //make certain taht the modem is synced and awake.
@@ -440,11 +451,11 @@ void setup()
         //the default state of the accelero meter is shut-down mode.
         if(setState(false) == true){
             delay(3000);                                            //small delay for the lora congestion. It's not enough, but will do. First gps fix (3th message) usually takes a while 
-            reportBatteryStatus(Modem, Device);                     //send the current battery status at startup to report init state. This also puts the modem a sleep.
+            reportBatteryStatus(Modem, payload);                     //send the current battery status at startup to report init state. This also puts the modem a sleep.
         }
 	}
     else{
-		reportBatteryStatus(Modem, Device);
+		reportBatteryStatus(Modem, payload);
 		delay(3000);
         startGPSFix();
 	}
@@ -510,7 +521,7 @@ void loop()
             if(_wasMoving)
                 checkIfStillMoving();
             else if(_gpsScanning){                                       //if we still need to send a gps fix, try to do it now.             
-                if(!trySendGPSFix())								//if the gps fix operation didn't finish, then we still need to restart the timer, otherwise it already happened.
+                if(!trySendGPSFix(true))								//if the gps fix operation didn't finish, then we still need to restart the timer, otherwise it already happened.
 					setWakeUpClock();
 			}
         }
@@ -526,7 +537,7 @@ void loop()
 		SerialUSB.println("wake up from timer");
         wakeFromTimer = false;
         if(_gpsScanning){                                       //if we already started to send a gps fix, try to see if we have some data to send.  
-            trySendGPSFix();
+            trySendGPSFix(true);
 			setWakeUpClock();
 		}
         else
