@@ -32,7 +32,7 @@ void loop() {
   SerialUSB.println(bat);
 
   
-  bat = (uint16_t)((100.0/ 1200.) * (float) (3000 - bat));
+  bat = (uint16_t)((100.0/ 1200.) * (float) (bat - 3000));
   SerialUSB.println(bat);
   
   delay(1000);

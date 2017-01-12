@@ -278,7 +278,7 @@ void reportBatteryStatus(MicrochipLoRaModem &modem, Container &payload)
 		_batteryLastReportedAt = curTime;
 		
 	ATTDevice* device = payload.GetDevice();
-	while device->ProcessQueuePopFailed() > 0){}		//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
+	while (device->ProcessQueuePopFailed() > 0){}		//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
 	modem.Sleep();
 }
 

@@ -514,7 +514,7 @@ void checkIfStillMoving()
 
 void loop()
 {
-    tryReportBattery(Modem, Device); 
+    tryReportBattery(Modem, payload); 
     if(params.getUseAccelero()){
         if (wakeFromTimer == true) {                                //we got woken up by the timer, so check if still moving.  
             wakeFromTimer = false;
