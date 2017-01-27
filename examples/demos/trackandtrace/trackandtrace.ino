@@ -26,9 +26,9 @@
  * 
  **/
 
+#include <Wire.h>
 #include <ATT_IOT_LoRaWAN.h>
 #include <MicrochipLoRaModem.h>
-#include <Wire.h>
 #include <ATT_LoRaWAN_LSM303.h>
 #include <ATT_LoRaWAN_RTCZero.h>
 #include <ATT_LoRaWAN_UBlox_GPS.h>
@@ -328,7 +328,7 @@ bool sendState(bool value)
 	while(sendRes > 0)										//let the device process the messages untill done. This can be further optimized by delaying this until in the main 'loop' function.
 		sendRes = Device.ProcessQueuePopFailed();
 	signalSendResult(sendRes == 0);
-	
+	Modem.Sleep();
     return sendRes == 0;
 }
  
