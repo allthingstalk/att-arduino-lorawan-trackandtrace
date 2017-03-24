@@ -256,7 +256,6 @@ void stopGPSFix()
 }
 
 //gets the current location from the gps and sends it to the cloud.
-//withSendDelay: when true, the function will pause (15 sec) before sending the message. The 15 sec is in total, so getting a gps fix is included in that time.
 //returns true if the operation was terminated. Otherwise false
 //manageModem : when true, the modem will be woken up, wait until send is done, then put back to sleep. When false, modem should be awake before call, will not be waited or put to sleep.
 bool trySendGPSFix(bool manageModem)
