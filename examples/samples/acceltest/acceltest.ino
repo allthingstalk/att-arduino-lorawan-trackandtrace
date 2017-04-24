@@ -36,6 +36,28 @@ void ISR2()
   int2_flag = true;
 }
 
+uint8_t WriteReg(uint8_t reg, uint8_t val)
+{
+  Wire.beginTransmission(ACCEL_ADR);
+  Wire.write(reg);
+  Wire.write(val);
+  Wire.endTransmission();
+  delayMicroseconds(10000);
+}
+
+uint8_t ReadReg(uint8_t reg)
+{
+  Wire.beginTransmission(ACCEL_ADR);
+  Wire.write(reg);
+  Wire.endTransmission();
+  Wire.requestFrom(ACCEL_ADR, 0x01);
+  
+  uint8_t val = Wire.read();
+  Wire.endTransmission();
+
+  return val;
+}
+
 void calibrate(int16_t &x, int16_t &y)
 {
 	x = 0;
@@ -69,18 +91,18 @@ void setThresholds(int16_t x, int16_t y)
 	SerialUSB.print("x: 0x"); SerialUSB.print(x, HEX); SerialUSB.print("; 0b"); SerialUSB.println(x, BIN);
 	SerialUSB.print("y: 0x"); SerialUSB.print(y, HEX); SerialUSB.print("; 0b"); SerialUSB.println(y, BIN);
 
-	writeReg(0x32, x & 0x7F); // Threshold
-	writeReg(0x33, 0b00000000); // Duration
+	WriteReg(0x32, x & 0x7F); // Threshold
+	WriteReg(0x33, 0b00000000); // Duration
 
-	writeReg(0x34, 0b10001000); // Axes mask
-	writeReg(0x36, y & 0x7F); // Threshold
+	WriteReg(0x34, 0b10001000); // Axes mask
+	WriteReg(0x36, y & 0x7F); // Threshold
 }
 
 void activateAcceleroInterupts()
 {
 
-	writeReg(0x22, 0b00100000);
-	writeReg(0x23, 0b00100000);
+	WriteReg(0x22, 0b00100000);
+	WriteReg(0x23, 0b00100000);
 }
 
 void setup() 
@@ -130,11 +152,11 @@ void setup()
                     GCLK_CLKCTRL_CLKEN;
 	
 	
-	writeReg(0x1F, 0b10000000); //reboot
-	writeReg(0x20, 0b01010111); //ctrl1
-	writeReg(0x30, 0b10000010); // Axes mask
+	WriteReg(0x1F, 0b10000000); //reboot
+	WriteReg(0x20, 0b01010111); //ctrl1
+	WriteReg(0x30, 0b10000010); // Axes mask
 	setThresholds(x, y);
-	writeReg(0x37, 0b00000000);
+	WriteReg(0x37, 0b00000000);
 	activateAcceleroInterupts();
 	
 
@@ -155,8 +177,8 @@ void loop()
   SerialUSB.print(", y: "); SerialUSB.print(compass.a.y* 0.061);
   SerialUSB.print(", z: "); SerialUSB.print(compass.a.z* 0.061);
 //  
-  CONSOLE_SERIAL.println("31 response: 0x" + String(readReg(0x31), BIN));
-  CONSOLE_SERIAL.println("35 response: 0x" + String(readReg(0x35), BIN));
+  CONSOLE_SERIAL.println("31 response: 0x" + String(ReadReg(0x31), BIN));
+  CONSOLE_SERIAL.println("35 response: 0x" + String(ReadReg(0x35), BIN));
  
 
   CONSOLE_SERIAL.println("going to sleep");
@@ -170,24 +192,4 @@ void loop()
   digitalWrite(LED_RED, HIGH);
 }
 
-uint8_t writeReg(uint8_t reg, uint8_t val)
-{
-  Wire.beginTransmission(ACCEL_ADR);
-  Wire.write(reg);
-  Wire.write(val);
-  Wire.endTransmission();
-  delayMicroseconds(10000);
-}
 
-uint8_t readReg(uint8_t reg)
-{
-  Wire.beginTransmission(ACCEL_ADR);
-  Wire.write(reg);
-  Wire.endTransmission();
-  Wire.requestFrom(ACCEL_ADR, 0x01);
-  
-  uint8_t val = Wire.read();
-  Wire.endTransmission();
-
-  return val;
-}

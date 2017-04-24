@@ -14,6 +14,7 @@
 
 #include <Wire.h>
 #include <ATT_LoRaWAN_RTCZero.h>
+#include "ATT_LoRaWAN_LSM303.h"
 
 
 
